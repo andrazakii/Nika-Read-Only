@@ -24,7 +24,7 @@ int counter = 1;
 bool leftLock = false;
 bool rightLock = false;
 bool autoFire = configLoader->FEATURE_TRIGGERBOT_ON;
-int boneId = 1;
+int boneId = 2;
 int processingTime;
 std::vector<int> processingTimes;
 double averageProcessingTime;
@@ -68,7 +68,7 @@ void renderUI() {
     if (readError > 0) {
         sense->renderStatus(leftLock, rightLock, autoFire, boneId, 0.0f, 0.0f, 0);
     } else {
-        sense->renderStatus(leftLock, rightLock, autoFire, boneId, averageProcessingTime, averageFps, cache);
+        sense->renderStatus(leftLock, rightLock, autoFire, boneId, averageProcessingTime, averageFps/2, cache);
         sense->renderESP(canvas);
         if (configLoader->FEATURE_MAP_RADAR_ON) sense->renderRadar(canvas);
         if (configLoader->FEATURE_SPECTATORS_ON) sense->renderSpectators(totalSpectators, spectators);
@@ -159,6 +159,7 @@ int main(int argc, char* argv[]) {
                 if (myDisplay->isKeyDown("XK_Up")) { autoFire = !autoFire; util::sleep(250); }
                 if (myDisplay->isKeyDown("XK_Down")) {
                     boneId--;
+                    if (!configLoader->AIMBOT_HITBOX_HEAD && boneId < 1) boneId = 2;
                     if (boneId < 0) boneId = 2;
                     util::sleep(250);
                 }
@@ -167,6 +168,11 @@ int main(int argc, char* argv[]) {
                     util::sleep(50);
                     readError -= 50;
                 } else { break; }
+            }
+
+            if (sense->shouldUnload) {
+                system("mount -o remount,rw,hidepid=0 /proc");
+                return -1;
             }
 
             // Read map and make sure it is playable
@@ -214,8 +220,10 @@ int main(int argc, char* argv[]) {
                     printf("Entities: %d\n", cache);
 
                     if (configLoader->FEATURE_SPECTATORS_ON) {
-                        int tempTotalSpectators = 0;
+                        int tempTotalSpectators;
                         std::vector<std::string> tempSpectators;
+                        tempTotalSpectators= 0;
+                        tempSpectators.clear();
                         for (int i = 0; i < players->size(); i++) {
                             Player* p = players->at(i);
                             if (p->base == localPlayer->base)
@@ -231,9 +239,9 @@ int main(int argc, char* argv[]) {
                         totalSpectators = tempTotalSpectators;
                         spectators = tempSpectators;
                         printf("Spectators: %d\n", static_cast<int>(spectators.size()));
-                        if (static_cast<int>(spectators.size()) > 0)
-                            for (int i = 0; i < static_cast<int>(spectators.size()); i++)
-                                printf("> %s\n", spectators.at(i).c_str());
+                        // if (static_cast<int>(spectators.size()) > 0)
+                        //     for (int i = 0; i < static_cast<int>(spectators.size()); i++)
+                        //         printf("> %s\n", spectators.at(i).c_str());
                     }
                 }
             } else {
@@ -248,7 +256,7 @@ int main(int argc, char* argv[]) {
             gameCamera->update();
             if (counter % configLoader->AIMBOT_DELAY == 0)
                 aimBot->update(leftLock, rightLock, autoFire, boneId, totalSpectators);
-            other->superGlide(averageFps);
+            other->superGlide(averageFps/2);
 
             if (configLoader->SENSE_VERBOSE > 1) overlayWindow.Render(&renderUI);
             processingTime = static_cast<int>(util::currentEpochMillis() - startTime);

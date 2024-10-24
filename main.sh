@@ -1,5 +1,8 @@
 #! /usr/bin/bash
 
+warp-cli disconnect
+#sleep 5
+
 file=$(sort --random-sort www.txt)
 url=$(head -n 1 <<< "$file")
 url2=$(head -n 2 <<< "$file" | tail -n 1)
@@ -16,6 +19,8 @@ title2=${title2//&????;}
 title2=${title2//&?????;}
 title2=${title2//&??????;}
 echo -e '\033]2;'${title//-}'\007'
+
+#warp-cli connect
 
 me=$(basename "$0")
 target="${me%.sh}"

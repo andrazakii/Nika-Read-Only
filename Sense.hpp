@@ -6,6 +6,7 @@ struct Sense {
     std::vector<Player*>* players;
     Camera* gameCamera;
     AimBot* aimBot;
+    bool shouldUnload = false;
 
     Sense(ConfigLoader* in_cl, LocalPlayer* in_lp, std::vector<Player*>* in_players, Camera* in_gameCamera, AimBot* in_aimBot) {
         this->cl = in_cl;
@@ -58,24 +59,39 @@ struct Sense {
         ImGui::End();
     }
 
-    void drawText(ImDrawList* canvas, Vector2D textPosition, const char* text, ImVec4 color) {
+    void drawText(ImDrawList* canvas, Vector2D textPosition, const char* text, ImVec4 textColor, float scaleFactor) {
         int textX = textPosition.x;
         int textY = textPosition.y;
-        char buffer[15];
+        char buffer[256];
         strncpy(buffer, text, sizeof(buffer));
+        buffer[sizeof(buffer) - 1] = '\0'; // Ensure null-termination
         const auto textSize = ImGui::CalcTextSize(buffer);
         const auto horizontalOffset = textSize.x / 2;
         const auto verticalOffset = textSize.y - 20;
-        const auto textColor = ImColor(color);
 
-        glColor3f(0, 0, 0);
+        // Draw background
+        glColor4f(0, 0, 0, 0.00f);
         glBegin(GL_QUADS);
         glVertex2f(textX - horizontalOffset - 3, textY + 3);
         glVertex2f(textX + horizontalOffset + 1, textY + 3);
         glVertex2f(textX + horizontalOffset + 1, textY + textSize.y - 1);
         glVertex2f(textX - horizontalOffset - 3, textY + textSize.y - 1);
         glEnd();
-        canvas->AddText({ textPosition.x - horizontalOffset, textPosition.y - verticalOffset }, textColor, buffer);
+
+        // Draw text
+        const auto textColorImColor = ImColor(textColor);
+        canvas->AddText({ textPosition.x - horizontalOffset, textPosition.y - verticalOffset }, textColorImColor, buffer);
+    }
+
+    bool isPlayerOnScreen(Player* player) {
+        Vector2D localOriginW2S, headPositionW2S;
+        Vector3D localOrigin3D = player->localOrigin;
+        Vector3D headPosition3D = player->getBonePosition(HitboxType::Head);
+
+        bool isLocalOriginW2SValid = gameCamera->worldToScreen(localOrigin3D, localOriginW2S);
+        bool isHeadPositionW2SValid = gameCamera->worldToScreen(headPosition3D, headPositionW2S);
+
+        return isLocalOriginW2SValid && isHeadPositionW2SValid;
     }
 
     void renderESP(ImDrawList* canvas) {
@@ -94,13 +110,14 @@ struct Sense {
                 headPosition3D = localOrigin3D;
                 headPosition3D.z += 10.0f;
             } else { headPosition3D = p->getBonePosition(HitboxType::Head); }
-//            Vector3D headPosition3D = p->getBonePosition(HitboxType::Head);
             Vector3D aboveHead3D = headPosition3D;
             aboveHead3D.z += 10.0f;
 
             bool isLocalOriginW2SValid = gameCamera->worldToScreen(localOrigin3D, localOriginW2S);
             bool isHeadPositionW2SValid = gameCamera->worldToScreen(headPosition3D, headPositionW2S);
             gameCamera->worldToScreen(aboveHead3D, aboveHeadW2S);
+
+            if (!isLocalOriginW2SValid || !isHeadPositionW2SValid) continue;
 
             // Colors - Players (Enemy)
             ImVec4 enemyBoxColor;
@@ -113,95 +130,175 @@ struct Sense {
             if (p->isEnemy && p->isValid() && !p->isLocal && distance < cl->SENSE_MAX_RANGE) {
 
                 // Draw Boxes
-                if (isLocalOriginW2SValid && isHeadPositionW2SValid) {
+                if (cl->SENSE_SHOW_BOX && isLocalOriginW2SValid && isHeadPositionW2SValid) {
                     Vector2D foot = localOriginW2S;
                     Vector2D head = headPositionW2S;
                     float height = head.y - foot.y;
                     float width = height / 2;
-                    glColor3f(enemyBoxColor.x, enemyBoxColor.y, enemyBoxColor.z);
+
+                    // Calculate the corner size based on the distance
+                    float cornerSize = 7.0f; // Base corner size
+                    if (distance > 100) {
+                        cornerSize = 5.0f; // Adjust the size of the corners as needed
+                    }
+                    if (distance > 150) {
+                        cornerSize = 3.0f; // Further reduce the corner size
+                    }
+                    if (distance > 200) {
+                        cornerSize = 1.0f; // Minimum corner size to form a "+"
+                    }
+
+                    glColor4f(enemyBoxColor.x, enemyBoxColor.y, enemyBoxColor.z, 1.0f);
                     glLineWidth(1.5f);
-                    glBegin(GL_LINE_LOOP);
-                    glVertex2f(foot.x - width/2, foot.y);
-                    glVertex2f(foot.x - width/2, head.y + height/5);
-                    glVertex2f(head.x + width/2, head.y + height/5);
-                    glVertex2f(head.x + width/2, foot.y);
+                    glBegin(GL_LINES);
+
+                    // Bottom-left corner
+                    glVertex2f(foot.x - width / 2, foot.y);
+                    glVertex2f(foot.x - width / 2, foot.y - cornerSize);
+                    glVertex2f(foot.x - width / 2, foot.y);
+                    glVertex2f(foot.x - width / 2 - cornerSize, foot.y);
+
+                    // Bottom-right corner
+                    glVertex2f(foot.x + width / 2, foot.y);
+                    glVertex2f(foot.x + width / 2, foot.y - cornerSize);
+                    glVertex2f(foot.x + width / 2, foot.y);
+                    glVertex2f(foot.x + width / 2 + cornerSize, foot.y);
+
+                    // Top-left corner
+                    glVertex2f(head.x - width / 2, head.y + height / 5);
+                    glVertex2f(head.x - width / 2 - cornerSize, head.y + height / 5);
+                    glVertex2f(head.x - width / 2, head.y + height / 5);
+                    glVertex2f(head.x - width / 2, head.y + height / 5 + cornerSize);
+
+                    // Top-right corner
+                    glVertex2f(head.x + width / 2, head.y + height / 5);
+                    glVertex2f(head.x + width / 2 + cornerSize, head.y + height / 5);
+                    glVertex2f(head.x + width / 2, head.y + height / 5);
+                    glVertex2f(head.x + width / 2, head.y + height / 5 + cornerSize);
+
                     glEnd();
-                    //canvas->AddRect(ImVec2(foot.x - (width / 2), foot.y), ImVec2(head.x + (width / 2), head.y + (height / 5)), ImColor(enemyBoxColor), 0.0f, 0, 2);
+                }
 
-                    // Draw bar
-                    if (cl->SENSE_SHOW_PLAYER_BARS && !p->isItem) {
-                        int life = p->currentHealth;
-                        int evo = p->currentShield;
-                        if (evo > 100)     glColor3f(1.00f, 0.25f, 0.00f); // Red shield
-                        else if (evo > 75) glColor3f(1.00f, 0.25f, 1.00f); // Purple shield
-                        else if (evo > 50) glColor3f(0.00f, 0.75f, 1.00f); // Blue shield
-                        else if (evo > 0)  glColor3f(1.00f, 1.00f, 1.00f); // White shield
-                        else               glColor3f(1.00f, 1.00f, 0.00f); // No shield
+                if (cl->SENSE_360_ALERT && (!isLocalOriginW2SValid || !isHeadPositionW2SValid)) {
+                    Vector2D screenCenter(screenSize.x / 2, screenSize.y / 2);
+                    Vector2D direction = localOriginW2S.Subtract(screenCenter);
+                    float angle = atan2(direction.y, direction.x);
+                    std::string txtDistance = std::to_string((int)distance);
+                    std::string indicator;
 
-                        glLineWidth(5.0f);
-                        glBegin(GL_LINES);
-                        glVertex2f(head.x + width/2 - 5.0f, foot.y);
-                        glVertex2f(head.x + width/2 - 5.0f, foot.y + (height + height/5) * life/100);
-                        glEnd();
+                    if (angle > -M_PI / 4 && angle <= M_PI / 4) {
+                        indicator = txtDistance + " >";
+                    } else if (angle > M_PI / 4 && angle <= 3 * M_PI / 4) {
+                        indicator = txtDistance + "\nv"; // Distance on top of "v"
+                    } else if (angle > 3 * M_PI / 4 || angle <= -3 * M_PI / 4) {
+                        indicator = "< " + txtDistance;
+                    } else if (angle > -3 * M_PI / 4 && angle <= -M_PI / 4) {
+                        indicator = "^ " + txtDistance;
                     }
 
+                    if (!indicator.empty()) {
+                        ImVec4 indicatorColor = ImVec4(1.00f, 0.00f, 0.00f, 1.00f);
+                        drawText(canvas, screenCenter, indicator.c_str(), indicatorColor, 1.0f);
+                    }
+                }
+
+                // Draw bar
+                if (cl->SENSE_SHOW_PLAYER_BARS && !p->isItem && isLocalOriginW2SValid && isHeadPositionW2SValid) {
+                    Vector2D foot = localOriginW2S;
+                    Vector2D head = headPositionW2S;
+                    float height = head.y - foot.y;
+                    float width = height / 2;
+                    int life = p->currentHealth;
+                    int evo = p->currentShield;
+                    if (evo > 100)     glColor3f(1.00f, 0.25f, 0.00f); // Red shield
+                    else if (evo > 75) glColor3f(1.00f, 0.25f, 1.00f); // Purple shield
+                    else if (evo > 50) glColor3f(0.00f, 0.75f, 1.00f); // Blue shield
+                    else if (evo > 0)  glColor3f(1.00f, 1.00f, 1.00f); // White shield
+                    else               glColor3f(1.00f, 1.00f, 0.00f); // No shield
+
+                    glLineWidth(5.0f);
+                    glBegin(GL_LINES);
+                    glVertex2f(head.x + width/2 - 5.0f, foot.y);
+                    glVertex2f(head.x + width/2 - 5.0f, foot.y + (height + height/5) * life/100);
+                    glEnd();
+                }
+
+                if (cl->SENSE_TEXT_BOTTOM)
+                    drawPosition = localOriginW2S.Subtract(Vector2D(0, 10));
+                else
+                    drawPosition = aboveHeadW2S.Subtract(Vector2D(0, 10));
+
+                // Draw Distance
+                if (cl->SENSE_SHOW_PLAYER_DISTANCES && isLocalOriginW2SValid && isHeadPositionW2SValid) {
                     if (cl->SENSE_TEXT_BOTTOM)
-                        drawPosition = localOriginW2S.Subtract(Vector2D(0, 10));
+                        drawPosition = drawPosition.Add(Vector2D(0, 20));
                     else
-                        drawPosition = aboveHeadW2S.Subtract(Vector2D(0, 10));
-                    // Draw Distance
-                    if (cl->SENSE_SHOW_PLAYER_DISTANCES) {
-                        if (cl->SENSE_TEXT_BOTTOM)
-                            drawPosition = drawPosition.Add(Vector2D(0, 20));
-                        else
-                            drawPosition = drawPosition.Subtract(Vector2D(0, 20));
-                        const char* txtPrefix = "[";
-                        const char* txtDistance = std::to_string((int)distance).c_str();
-                        const char* txtSuffix = " M]";
-                        char distanceText[256];
-                        strncpy(distanceText, txtPrefix, sizeof(distanceText));
-                        strncat(distanceText, txtDistance, sizeof(distanceText));
-                        strncat(distanceText, txtSuffix, sizeof(distanceText));
-                        drawText(canvas, drawPosition, distanceText, enemyBoxColor);
-                    }
-                    // Draw Name
-                    if (cl->SENSE_SHOW_PLAYER_NAMES || p->isItem) {
-                        if (cl->SENSE_TEXT_BOTTOM)
-                            drawPosition = drawPosition.Add(Vector2D(0, 20));
-                        else
-                            drawPosition = drawPosition.Subtract(Vector2D(0, 20));
-                        const char* txtName;
-                        if (p->isPlayer)
-                            txtName = p->getPlayerName().c_str();
-                        else
-                            if (p->isDrone)
-                                txtName = "Drone";
-                            else
-                                if (p->isDummie)
-                                    txtName = "Dummie";
-                                else
-                                    for (int arraySize = sizeof(data::items) / sizeof(data::items[0]), i = 0; i < arraySize; i++)
-                                        if (p->itemId == stoi(data::items[i][1])) { txtName = data::items[i][0].c_str(); break; }
-                                    //txtName = data::items[data::selectedRadio][0].c_str();
-                        char nameText[256];
-                        strncpy(nameText, txtName, sizeof(nameText));
-                        drawText(canvas, drawPosition, nameText, enemyBoxColor);
-                    }
-                    // Draw Level
-                    if (cl->SENSE_SHOW_PLAYER_LEVELS && p->isPlayer) {
-                        if (cl->SENSE_TEXT_BOTTOM)
-                            drawPosition = drawPosition.Add(Vector2D(0, 20));
-                        else
-                            drawPosition = drawPosition.Subtract(Vector2D(0, 20));
-                        const char* txtPrefix = "Lv ";
-                        const char* txtLevel = std::to_string(p->GetPlayerLevel()).c_str();
-                        //const char* txtSuffix = "";
-                        char levelText[256];
-                        strncpy(levelText, txtPrefix, sizeof(levelText));
-                        strncat(levelText, txtLevel, sizeof(levelText));
-                        //strncat(levelText, txtSuffix, sizeof(levelText));
-                        drawText(canvas, drawPosition, levelText, enemyBoxColor);
-                    }
+                        drawPosition = drawPosition.Subtract(Vector2D(0, 20));
+
+                    const char* txtPrefix = "[";
+                    const char* txtDistance = std::to_string((int)distance).c_str();
+                    const char* txtSuffix = " M]";
+                    char distanceText[256];
+                    strncpy(distanceText, txtPrefix, sizeof(distanceText));
+                    strncat(distanceText, txtDistance, sizeof(distanceText));
+                    strncat(distanceText, txtSuffix, sizeof(distanceText));
+
+                    // Calculate the scaling factor based on the distance and SENSE_MAX_RANGE
+                    float scaleFactor = 1.0f - (distance / cl->SENSE_MAX_RANGE);
+                    scaleFactor = std::max(0.5f, std::min(1.0f, scaleFactor)); // Clamp scaleFactor between 0.5 and 1.0
+
+                    // Adjust the font size using the scaling factor
+                    ImVec4 scaledColor = ImVec4(enemyBoxColor.x, enemyBoxColor.y, enemyBoxColor.z, enemyBoxColor.w * scaleFactor);
+                    drawText(canvas, drawPosition, distanceText, scaledColor, scaleFactor);
+                }
+
+                // Draw Name
+                if (cl->SENSE_SHOW_PLAYER_NAMES || p->isItem) {
+                    if (cl->SENSE_TEXT_BOTTOM)
+                        drawPosition = drawPosition.Add(Vector2D(0, 20));
+                    else
+                        drawPosition = drawPosition.Subtract(Vector2D(0, 20));
+                    const char* txtName;
+                    if (p->isPlayer)
+                        txtName = p->getPlayerName().c_str();
+                    else if (p->isDrone)
+                        txtName = "Drone";
+                    else if (p->isDummie)
+                        txtName = "Dummie";
+                    else
+                        for (int arraySize = sizeof(data::items) / sizeof(data::items[0]), i = 0; i < arraySize; i++)
+                            if (p->itemId == stoi(data::items[i][1])) { txtName = data::items[i][0].c_str(); break; }
+                    char nameText[256];
+                    strncpy(nameText, txtName, sizeof(nameText));
+
+                    // Calculate the scaling factor based on the distance and SENSE_MAX_RANGE
+                    float scaleFactor = 1.0f - (distance / cl->SENSE_MAX_RANGE);
+                    scaleFactor = std::max(0.5f, std::min(1.0f, scaleFactor)); // Clamp scaleFactor between 0.5 and 1.0
+
+                    // Adjust the font size using the scaling factor
+                    ImVec4 scaledColor = ImVec4(enemyBoxColor.x, enemyBoxColor.y, enemyBoxColor.z, enemyBoxColor.w * scaleFactor);
+                    drawText(canvas, drawPosition, nameText, scaledColor, scaleFactor);
+                }
+
+                // Draw Level
+                if (cl->SENSE_SHOW_PLAYER_LEVELS && p->isPlayer) {
+                    if (cl->SENSE_TEXT_BOTTOM)
+                        drawPosition = drawPosition.Add(Vector2D(0, 20));
+                    else
+                        drawPosition = drawPosition.Subtract(Vector2D(0, 20));
+                    const char* txtPrefix = "Lv ";
+                    const char* txtLevel = std::to_string(p->GetPlayerLevel()).c_str();
+                    char levelText[256];
+                    strncpy(levelText, txtPrefix, sizeof(levelText));
+                    strncat(levelText, txtLevel, sizeof(levelText));
+
+                    // Calculate the scaling factor based on the distance and SENSE_MAX_RANGE
+                    float scaleFactor = 1.0f - (distance / cl->SENSE_MAX_RANGE);
+                    scaleFactor = std::max(0.5f, std::min(1.0f, scaleFactor)); // Clamp scaleFactor between 0.5 and 1.0
+
+                    // Adjust the font size using the scaling factor
+                    ImVec4 scaledColor = ImVec4(enemyBoxColor.x, enemyBoxColor.y, enemyBoxColor.z, enemyBoxColor.w * scaleFactor);
+                    drawText(canvas, drawPosition, levelText, scaledColor, scaleFactor);
                 }
 
                 // Draw Warning
@@ -220,7 +317,7 @@ struct Sense {
             txtWarning = "VISIBLE WARNING";
             char warningText[256];
             strncpy(warningText, txtWarning, sizeof(warningText));
-            drawText(canvas, drawPosition, warningText, warningColor);
+            drawText(canvas, drawPosition, warningText, warningColor, 1.0f);
         }
 
         if (drawDroneWarning) {
@@ -230,7 +327,7 @@ struct Sense {
             txtWarning = "DRONE WARNING";
             char warningText[256];
             strncpy(warningText, txtWarning, sizeof(warningText));
-            drawText(canvas, drawPosition, warningText, warningColor);
+            drawText(canvas, drawPosition, warningText, warningColor, 1.0f);
         }
 
         // Draw FOV circle
@@ -378,21 +475,178 @@ struct Sense {
         ImVec2 center = ImGui::GetMainViewport()->GetCenter();
         ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
         ImGui::SetNextWindowBgAlpha(0.67f);
-        ImGui::Begin("Items", nullptr,
-            //ImGuiWindowFlags_NoTitleBar |
-            ImGuiWindowFlags_NoResize |
-            ImGuiWindowFlags_NoMove |
-            ImGuiWindowFlags_NoScrollbar |
+        ImGui::Begin("Menu", nullptr,
             ImGuiWindowFlags_NoCollapse |
+            ImGuiWindowFlags_NoScrollbar |
             ImGuiWindowFlags_NoSavedSettings);
 
-        ImGui::BeginTable("Rows", 5);
-        for (int i = 0; i < static_cast<int>(sizeof data::items / sizeof data::items[0]); i++) {
-            ImGui::TableNextColumn();
-            std::string id = data::items[i][0];
-            if (ImGui::RadioButton(id.c_str(), &data::selectedRadio, i)) printf("%d\n", data::selectedRadio);
+        if (ImGui::BeginTabBar("Categories")) {
+            if (ImGui::BeginTabItem("Aimbot")) {
+                ImGui::Text("Aimbot Settings");
+                ImGui::Checkbox("Aimbot", &cl->FEATURE_AIMBOT_ON);
+                ImGui::SliderInt("Aimbot Hz", &cl->AIMBOT_HZ, 0, 240);
+                ImGui::SliderInt("Aimbot Delay", &cl->AIMBOT_DELAY, 0, 100);
+                ImGui::SliderFloat("Aimbot Speed", &cl->AIMBOT_SPEED, 0.0f, 100.0f);
+                ImGui::SliderFloat("Aimbot Smooth", &cl->AIMBOT_SMOOTH, 0.0f, 100.0f);
+                ImGui::SliderFloat("Aimbot Smooth Extra by Distance", &cl->AIMBOT_SMOOTH_EXTRA_BY_DISTANCE, 0.0f, 5000.0f);
+                ImGui::SliderFloat("Aimbot FOV", &cl->AIMBOT_FOV, 0.0f, 180.0f);
+                ImGui::SliderFloat("Aimbot FOV Extra by Zoom", &cl->AIMBOT_FOV_EXTRA_BY_ZOOM, 0.0f, 10.0f);
+                ImGui::SliderFloat("Aimbot Fast Area", &cl->AIMBOT_FAST_AREA, 0.0f, 1.0f);
+                ImGui::SliderFloat("Aimbot Slow Area", &cl->AIMBOT_SLOW_AREA, 0.0f, 1.0f);
+                ImGui::SliderFloat("Aimbot Weaken", &cl->AIMBOT_WEAKEN, 0.0f, 10.0f);
+                ImGui::Checkbox("Aimbot Spectators Weaken", &cl->AIMBOT_SPECTATORS_WEAKEN);
+                ImGui::Checkbox("Aimbot Predict Bullet Drop", &cl->AIMBOT_PREDICT_BULLETDROP);
+                ImGui::Checkbox("Aimbot Predict Movement", &cl->AIMBOT_PREDICT_MOVEMENT);
+                ImGui::Checkbox("Aimbot Allow Head Target", &cl->AIMBOT_HITBOX_HEAD);
+                ImGui::Checkbox("Aimbot Friendly Fire", &cl->AIMBOT_FRIENDLY_FIRE);
+                ImGui::Checkbox("Aimbot Legacy Mode", &cl->AIMBOT_LEGACY_MODE);
+                ImGui::SliderInt("Aimbot Max Distance", &cl->AIMBOT_MAX_DISTANCE, 0, 1000);
+                ImGui::SliderInt("Aimbot Min Distance", &cl->AIMBOT_MIN_DISTANCE, 0, 1000);
+                ImGui::SliderInt("Aimbot Zoomed Max Move", &cl->AIMBOT_ZOOMED_MAX_MOVE, 0, 100);
+                ImGui::SliderInt("Aimbot Hipfire Max Move", &cl->AIMBOT_HIPFIRE_MAX_MOVE, 0, 100);
+                ImGui::SliderInt("Aimbot Max Delta", &cl->AIMBOT_MAX_DELTA, 0, 100);
+                ImGui::Checkbox("Aimbot Activated by ADS", &cl->AIMBOT_ACTIVATED_BY_ADS);
+                ImGui::Checkbox("Aimbot Activated by Mouse", &cl->AIMBOT_ACTIVATED_BY_MOUSE);
+                ImGui::Checkbox("Aimbot Activated by Key", &cl->AIMBOT_ACTIVATED_BY_KEY);
+                ImGui::EndTabItem();
+            }
+
+            if (ImGui::BeginTabItem("Recoil")) {
+                ImGui::Text("Recoil Settings");
+                ImGui::SliderFloat("Jitter X Amount", &cl->JITTER_X_AMOUNT, 0.0f, 10.0f);
+                ImGui::SliderFloat("Jitter Y Amount", &cl->JITTER_Y_AMOUNT, 0.0f, 10.0f);
+                ImGui::EndTabItem();
+            }
+
+            if (ImGui::BeginTabItem("Sense")) {
+                ImGui::Text("Sense Settings");
+                ImGui::SliderInt("Verbose", &cl->SENSE_VERBOSE, 0, 5);
+                ImGui::SliderInt("Max Range", &cl->SENSE_MAX_RANGE, 0, 1000);
+                ImGui::Checkbox("360 Alert", &cl->SENSE_360_ALERT);
+                ImGui::Checkbox("Show Box", &cl->SENSE_SHOW_BOX);
+                ImGui::Checkbox("Show Player Bars", &cl->SENSE_SHOW_PLAYER_BARS);
+                ImGui::Checkbox("Show Player Distances", &cl->SENSE_SHOW_PLAYER_DISTANCES);
+                ImGui::Checkbox("Show Player Names", &cl->SENSE_SHOW_PLAYER_NAMES);
+                ImGui::Checkbox("Show Player Levels", &cl->SENSE_SHOW_PLAYER_LEVELS);
+                ImGui::Checkbox("Text Bottom", &cl->SENSE_TEXT_BOTTOM);
+                ImGui::Checkbox("Show Dead", &cl->SENSE_SHOW_DEAD);
+                ImGui::Checkbox("Show FOV", &cl->SENSE_SHOW_FOV);
+                ImGui::Checkbox("Show Target", &cl->SENSE_SHOW_TARGET);
+                ImGui::EndTabItem();
+            }
+
+            if (ImGui::BeginTabItem("Items")) {
+                ImGui::Text("Items");
+                ImGui::BeginTable("Rows", 5);
+                for (int i = 0; i < static_cast<int>(sizeof data::items / sizeof data::items[0]); i++) {
+                    ImGui::TableNextColumn();
+                    std::string id = data::items[i][0];
+                    if (ImGui::RadioButton(id.c_str(), &data::selectedRadio, i)) printf("%d\n", data::selectedRadio);
+                }
+                ImGui::EndTable();
+                ImGui::EndTabItem();
+            }
+
+            if (ImGui::BeginTabItem("Settings")) {
+                ImGui::Text("Settings");
+                ImGui::Checkbox("Aimbot", &cl->FEATURE_AIMBOT_ON);
+                ImGui::Checkbox("Triggerbot", &cl->FEATURE_TRIGGERBOT_ON);
+                ImGui::Checkbox("Recoil Control", &cl->FEATURE_RECOIL_ON);
+                ImGui::Checkbox("Spectators", &cl->FEATURE_SPECTATORS_ON);
+                ImGui::Checkbox("Show Dead Spectators", &cl->FEATURE_SPECTATORS_SHOW_DEAD);
+                ImGui::Checkbox("Super Glide", &cl->FEATURE_SUPER_GLIDE_ON);
+                ImGui::Checkbox("Map Radar", &cl->FEATURE_MAP_RADAR_ON);
+                ImGui::SliderInt("Map Radar X", &cl->FEATURE_MAP_RADAR_X, 0, 500);
+                ImGui::SliderInt("Map Radar Y", &cl->FEATURE_MAP_RADAR_Y, 0, 500);
+
+                // Add Save Button
+                if (ImGui::Button("Save Settings")) {
+                    saveSettings();
+                }
+                if (ImGui::Button("Unload")) {
+                    shouldUnload = true;
+                }
+
+                ImGui::EndTabItem();
+            }
+
+            ImGui::EndTabBar();
         }
-        ImGui::EndTable();
+
         ImGui::End();
+    }
+
+    void saveSettings() {
+        std::ofstream configFile("nika.ini");
+
+        if (configFile.is_open()) {
+            configFile << "# ENABLE/DISABLE FEATURES\n";
+            configFile << "FEATURE_AIMBOT_ON                      " << (cl->FEATURE_AIMBOT_ON ? "YES" : "NO") << "   #[YES,NO] Does your aim suck?\n";
+            configFile << "FEATURE_RECOIL_ON                      " << (cl->FEATURE_RECOIL_ON ? "YES" : "NO") << "   #[YES,NO] Cant control recoil?\n";
+            configFile << "FEATURE_TRIGGERBOT_ON                  " << (cl->FEATURE_TRIGGERBOT_ON ? "YES" : "NO") << "   #[YES,NO] Do you pull instead of squeeze?\n";
+            configFile << "FEATURE_SPECTATORS_ON                  " << (cl->FEATURE_SPECTATORS_ON ? "YES" : "NO") << "   #[YES,NO] Show spectators list\n";
+            configFile << "FEATURE_SPECTATORS_SHOW_DEAD           " << (cl->FEATURE_SPECTATORS_SHOW_DEAD ? "YES" : "NO") << "   #[YES,NO] Also show dead players still connected\n";
+            configFile << "FEATURE_SUPER_GLIDE_ON                 " << (cl->FEATURE_SUPER_GLIDE_ON ? "YES" : "NO") << "   #[YES,NO] Allow super glide activation?\n";
+            configFile << "FEATURE_MAP_RADAR_ON                   " << (cl->FEATURE_MAP_RADAR_ON ? "YES" : "NO") << "   #[YES,NO] Show minimap radar\n";
+            configFile << "FEATURE_MAP_RADAR_X                    " << cl->FEATURE_MAP_RADAR_X << "   #[] 1920*1080 X_215 Y_215\n";
+            configFile << "FEATURE_MAP_RADAR_Y                    " << cl->FEATURE_MAP_RADAR_Y << "   #[] 2560*1440 X_335 Y_335\n";
+
+            configFile << "\n# SENSE\n";
+            configFile << "SENSE_VERBOSE                          " << cl->SENSE_VERBOSE << "    #[1-2] 2 = use Overlay, 1 = use CLI (text only)\n";
+            configFile << "SENSE_MAX_RANGE                        " << cl->SENSE_MAX_RANGE << "  #[0-99999] Sense will not work if the target is too far. Units are meters\n";
+            configFile << "SENSE_360_ALERT                        " << (cl->SENSE_360_ALERT ? "YES" : "NO") << "  #[YES,NO] Alert when someone is behind you\n";
+            configFile << "SENSE_SHOW_BOX                         " << (cl->SENSE_SHOW_BOX ? "YES" : "NO") << "  #[YES,NO]\n";
+            configFile << "SENSE_SHOW_PLAYER_BARS                 " << (cl->SENSE_SHOW_PLAYER_BARS ? "YES" : "NO") << "  #[YES,NO]\n";
+            configFile << "SENSE_SHOW_PLAYER_DISTANCES            " << (cl->SENSE_SHOW_PLAYER_DISTANCES ? "YES" : "NO") << "  #[YES,NO]\n";
+            configFile << "SENSE_SHOW_PLAYER_NAMES                " << (cl->SENSE_SHOW_PLAYER_NAMES ? "YES" : "NO") << "  #[YES,NO]\n";
+            configFile << "SENSE_SHOW_PLAYER_LEVELS               " << (cl->SENSE_SHOW_PLAYER_LEVELS ? "YES" : "NO") << "  #[YES,NO]\n";
+            configFile << "SENSE_TEXT_BOTTOM                      " << (cl->SENSE_TEXT_BOTTOM ? "YES" : "NO") << "  #[YES,NO]\n";
+            configFile << "SENSE_SHOW_DEAD                        " << (cl->SENSE_SHOW_DEAD ? "YES" : "NO") << "  #[YES,NO]\n";
+            configFile << "SENSE_SHOW_FOV                         " << (cl->SENSE_SHOW_FOV ? "YES" : "NO") << "  #[YES,NO] Draw FOV circle\n";
+            configFile << "SENSE_SHOW_TARGET                      " << (cl->SENSE_SHOW_TARGET ? "YES" : "NO") << "  #[YES,NO] Draw target line\n";
+
+            configFile << "\n# TRIGGERBOT\n";
+            configFile << "TRIGGERBOT_HIPFIRE_RANGE               " << cl->TRIGGERBOT_HIPFIRE_RANGE << "   #[0-99999] Max range triggerbot will work at when firing gun from hip\n";
+
+            configFile << "\n# JITTER RECOIL\n";
+            configFile << "JITTER_X_AMOUNT                         " << cl->JITTER_X_AMOUNT << "   #[0-100] Recoil jitter amount\n";
+            configFile << "JITTER_Y_AMOUNT                         " << cl->JITTER_Y_AMOUNT << "   #[0-100] Recoil jitter amount\n";
+
+            configFile << "\n# AIMBOT\n";
+            configFile << "AIMBOT_HZ                              " << cl->AIMBOT_HZ << "  #[60-240] Aimbot cycles per second. Above 60Hz only used for MASTIFF + PEACEKEEPER triggerbot\n";
+            configFile << "AIMBOT_DELAY                           " << cl->AIMBOT_DELAY << "    #[1-10] Mouse will move every N cycles\n";
+            configFile << "AIMBOT_SPEED                           " << cl->AIMBOT_SPEED << "   #[1-999.9] Bigger = Faster (when SMOOTH+SMOOTH_EXTRA are balanced, you can adjust SPEED for both)\n";
+            configFile << "AIMBOT_SMOOTH                          " << cl->AIMBOT_SMOOTH << "   #[1-999.9] Smaller = Faster\n";
+            configFile << "AIMBOT_SMOOTH_EXTRA_BY_DISTANCE        " << cl->AIMBOT_SMOOTH_EXTRA_BY_DISTANCE << " #[1-99999] The closer the enemy the more smoothing. Legacy mode\n";
+            configFile << "AIMBOT_FOV                             " << cl->AIMBOT_FOV << "  #[1-180.0] How close to the crosshair will the aimbot activate\n";
+            configFile << "AIMBOT_FOV_EXTRA_BY_ZOOM               " << cl->AIMBOT_FOV_EXTRA_BY_ZOOM << "  #[0-10.0]\n";
+            configFile << "AIMBOT_FAST_AREA                       " << cl->AIMBOT_FAST_AREA << " #[0.50-0.75] % of FOV area to allow more flick. Outer FOV\n";
+            configFile << "AIMBOT_SLOW_AREA                       " << cl->AIMBOT_SLOW_AREA << " #[0.25-0.50] % of FOV area to allow less flick. Inner FOV\n";
+            configFile << "AIMBOT_WEAKEN                          " << cl->AIMBOT_WEAKEN << "    #[2-10.0] AIMBOT_SPEED reduction by this divisor, toggle this with CURSOR_LEFT\n";
+
+            configFile << "AIMBOT_SPECTATORS_WEAKEN               " << (cl->AIMBOT_SPECTATORS_WEAKEN ? "YES" : "NO") << "  #[YES,NO]\n";
+            configFile << "AIMBOT_PREDICT_BULLETDROP              " << (cl->AIMBOT_PREDICT_BULLETDROP ? "YES" : "NO") << "  #[YES,NO] Self explanatory\n";
+            configFile << "AIMBOT_PREDICT_MOVEMENT                " << (cl->AIMBOT_PREDICT_MOVEMENT ? "YES" : "NO") << "  #[YES,NO] Self explanatory\n";
+            configFile << "AIMBOT_HITBOX_HEAD                     " << (cl->AIMBOT_HITBOX_HEAD ? "YES" : "NO") << "  #[YES,NO] Allow targeting head?\n";
+            configFile << "AIMBOT_FRIENDLY_FIRE                   " << (cl->AIMBOT_FRIENDLY_FIRE ? "YES" : "NO") << "  #[YES,NO] Self explanatory\n";
+            configFile << "AIMBOT_LEGACY_MODE                     " << (cl->AIMBOT_LEGACY_MODE ? "YES" : "NO") << "  #[YES,NO] Self explanatory\n";
+
+            configFile << "AIMBOT_MAX_DISTANCE                    " << cl->AIMBOT_MAX_DISTANCE << "  #[0-99999] Aimbot will not work if the target is too far. Units are meters\n";
+            configFile << "AIMBOT_MIN_DISTANCE                    " << cl->AIMBOT_MIN_DISTANCE << "    #[0-99999] Aimbot will not work if the target is too close. Units are meters\n";
+            configFile << "AIMBOT_ZOOMED_MAX_MOVE                 " << cl->AIMBOT_ZOOMED_MAX_MOVE << "   #[1-99999] Self explanatory\n";
+            configFile << "AIMBOT_HIPFIRE_MAX_MOVE                " << cl->AIMBOT_HIPFIRE_MAX_MOVE << "   #[1-99999] Self explanatory\n";
+            configFile << "AIMBOT_MAX_DELTA                       " << cl->AIMBOT_MAX_DELTA << "   #[1-99999] Maximum speed increase/decrease\n";
+
+            configFile << "AIMBOT_ACTIVATED_BY_ADS                " << (cl->AIMBOT_ACTIVATED_BY_ADS ? "YES" : "NO") << "  #[YES,NO] Aimbot will activate when zooming with a weapon\n";
+            configFile << "AIMBOT_ACTIVATED_BY_MOUSE              " << (cl->AIMBOT_ACTIVATED_BY_MOUSE ? "YES" : "NO") << "  #[YES,NO] Aimbot will be activated when pressing the left mouse button\n";
+            configFile << "AIMBOT_ACTIVATED_BY_KEY                " << (cl->AIMBOT_ACTIVATED_BY_KEY ? "YES" : "NO") << "  #[YES,NO] Aimbot will be activated when pressing the key below\n";
+
+            configFile << "\n# KEYS\n";
+            configFile << "AIMBOT_ACTIVATION_KEY                  " << cl->AIMBOT_ACTIVATION_KEY << "   #[Check key_codes.txt else leave empty or put NONE] Aimbot will be activated when this key is pressed\n";
+            configFile << "AIMBOT_FIRING_KEY                      " << cl->AIMBOT_FIRING_KEY << "         #[Check key_codes.txt] Aimbot will press this key when it needs to fire\n";
+            configFile << "SUPER_GLIDE_ACTIVATION_KEY             " << cl->SUPER_GLIDE_ACTIVATION_KEY << " #[Check key_codes.txt else leave empty or put NONE] Super glide will activate while this key is pressed\n";
+
+            configFile.close();
+        }
     }
 };

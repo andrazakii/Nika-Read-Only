@@ -128,7 +128,33 @@ struct AimBot {
         return wayB;
     }
 
+    void applyJitter() {
+        if (!cl->FEATURE_RECOIL_ON) {
+            return;
+        }
+
+        // Random jitter amounts (tweak these values based on your needs)
+        float jitterXAmount = cl->JITTER_X_AMOUNT; // Horizontal jitter amount
+        float jitterYAmount = cl->JITTER_Y_AMOUNT; // Vertical jitter amount
+
+        static bool jitterDirection = false;  // Toggle direction of jitter
+
+        // Determine the yaw and pitch movements based on the direction toggle
+        int yawMovement = (jitterDirection ? jitterXAmount : -jitterXAmount); // Left-right jitter
+        int pitchMovement = (jitterDirection ? jitterYAmount : -jitterYAmount); // Up-down jitter (if desired)
+
+        // Move the mouse based on the calculated jitter
+        myDisplay->moveMouseRelative(yawMovement, pitchMovement);
+
+        // Toggle the direction for the next update
+        jitterDirection = !jitterDirection;
+    }
+
     void update(bool leftLock, bool rightLock, bool autoFire, int boneId, int totalSpectators) {
+        if (myDisplay->isLeftMouseButtonDown() && myDisplay->isRightMouseButtonDown()) {
+            applyJitter(); // Apply jitter if both buttons are pressed
+        }
+        
         if (keymap::AIMBOT_FIRING_KEY && (!keymap::AIMBOT_ACTIVATION_KEY || currentTarget != nullptr && !currentTarget->isVisible)) {
             myDisplay->kbRelease(cl->AIMBOT_FIRING_KEY);
             keymap::AIMBOT_FIRING_KEY = false;

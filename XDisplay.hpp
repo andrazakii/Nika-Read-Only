@@ -44,6 +44,15 @@ public:
         return false;
     }
 
+    bool isRightMouseButtonDown() {
+        Window root, child;
+        int root_x, root_y, win_x, win_y;
+        unsigned int mask;
+        if (XQueryPointer(display, XRootWindow(display, DefaultScreen(display)), &root, &child, &root_x, &root_y, &win_x, &win_y, &mask))
+            return (mask & Button3Mask) != 0;
+        return false;
+    }
+
     std::string trimXKPrefix(const std::string& keyName) {
         if (keyName.compare(0, 3, "XK_") == 0)
             return keyName.substr(3);

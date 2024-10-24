@@ -38,6 +38,7 @@
 #include "Player.hpp"
 #include "Overlay.hpp"
 #include "Camera.hpp"
+// #include "GUI.hpp"
 // Features
 #include "AimBot.hpp"
 #include "Sense.hpp"

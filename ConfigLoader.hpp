@@ -12,6 +12,7 @@ struct ConfigLoader {
     // Features
     bool FEATURE_AIMBOT_ON = true;
     bool FEATURE_TRIGGERBOT_ON = true;
+    bool FEATURE_RECOIL_ON = true;
     bool FEATURE_SPECTATORS_ON = false;
     bool FEATURE_SPECTATORS_SHOW_DEAD = false;
     bool FEATURE_SUPER_GLIDE_ON = false;
@@ -21,6 +22,8 @@ struct ConfigLoader {
     // Sense
     int SENSE_VERBOSE = 2;
     int SENSE_MAX_RANGE = 250;
+    bool SENSE_360_ALERT = true;
+    bool SENSE_SHOW_BOX = true;
     bool SENSE_SHOW_PLAYER_BARS = true;
     bool SENSE_SHOW_PLAYER_DISTANCES = true;
     bool SENSE_SHOW_PLAYER_NAMES = false;
@@ -32,6 +35,9 @@ struct ConfigLoader {
     // TriggerBot
 //    int TRIGGERBOT_ZOOMED_RANGE = 180;
     int TRIGGERBOT_HIPFIRE_RANGE = 45;
+    // Jitter
+    float JITTER_X_AMOUNT = 3;
+    float JITTER_Y_AMOUNT = 3;
     // AimBot
     int AIMBOT_HZ = 144;
     int AIMBOT_DELAY = 3;
@@ -47,6 +53,7 @@ struct ConfigLoader {
     bool AIMBOT_PREDICT_BULLETDROP = true;
     bool AIMBOT_PREDICT_MOVEMENT = true;
 //    bool AIMBOT_ALLOW_TARGET_SWITCH = false;
+    bool AIMBOT_HITBOX_HEAD = false;
     bool AIMBOT_FRIENDLY_FIRE = false;
     bool AIMBOT_LEGACY_MODE = false;
     int AIMBOT_MAX_DISTANCE = 250;
@@ -134,6 +141,7 @@ struct ConfigLoader {
         // Features
         FEATURE_AIMBOT_ON = (key.compare("FEATURE_AIMBOT_ON") != 0) ? FEATURE_AIMBOT_ON : toBool(val);
         FEATURE_TRIGGERBOT_ON = (key.compare("FEATURE_TRIGGERBOT_ON") != 0) ? FEATURE_TRIGGERBOT_ON : toBool(val);
+        FEATURE_TRIGGERBOT_ON = (key.compare("FEATURE_RECOIL_ON") != 0) ? FEATURE_TRIGGERBOT_ON : toBool(val);
         FEATURE_SPECTATORS_ON = (key.compare("FEATURE_SPECTATORS_ON") != 0) ? FEATURE_SPECTATORS_ON : toBool(val);
         FEATURE_SPECTATORS_SHOW_DEAD = (key.compare("FEATURE_SPECTATORS_SHOW_DEAD") != 0) ? FEATURE_SPECTATORS_SHOW_DEAD : toBool(val);
         FEATURE_SUPER_GLIDE_ON = (key.compare("FEATURE_SUPER_GLIDE_ON") != 0) ? FEATURE_SUPER_GLIDE_ON : toBool(val);
@@ -143,6 +151,8 @@ struct ConfigLoader {
         // Sense
         SENSE_VERBOSE = (key.compare("SENSE_VERBOSE") != 0) ? SENSE_VERBOSE : stoi(val);
         SENSE_MAX_RANGE = (key.compare("SENSE_MAX_RANGE") != 0) ? SENSE_MAX_RANGE : stoi(val);
+        SENSE_360_ALERT = (key.compare("SENSE_360_ALERT") != 0) ? SENSE_360_ALERT : toBool(val);
+        SENSE_SHOW_BOX = (key.compare("SENSE_SHOW_BOX") != 0) ? SENSE_SHOW_BOX : toBool(val);
         SENSE_SHOW_PLAYER_BARS = (key.compare("SENSE_SHOW_PLAYER_BARS") != 0) ? SENSE_SHOW_PLAYER_BARS : toBool(val);
         SENSE_SHOW_PLAYER_DISTANCES = (key.compare("SENSE_SHOW_PLAYER_DISTANCES") != 0) ? SENSE_SHOW_PLAYER_DISTANCES : toBool(val);
         SENSE_SHOW_PLAYER_NAMES = (key.compare("SENSE_SHOW_PLAYER_NAMES") != 0) ? SENSE_SHOW_PLAYER_NAMES : toBool(val);
@@ -154,6 +164,9 @@ struct ConfigLoader {
         // TriggerBot
 //        TRIGGERBOT_ZOOMED_RANGE = (key.compare("TRIGGERBOT_ZOOMED_RANGE") != 0) ? TRIGGERBOT_ZOOMED_RANGE : stoi(val);
         TRIGGERBOT_HIPFIRE_RANGE = (key.compare("TRIGGERBOT_HIPFIRE_RANGE") != 0) ? TRIGGERBOT_HIPFIRE_RANGE : stoi(val);
+        // Jitter
+        JITTER_X_AMOUNT = (key.compare("JITTER_X_AMOUNT") != 0) ? JITTER_X_AMOUNT : stod(val);
+        JITTER_Y_AMOUNT = (key.compare("JITTER_Y_AMOUNT") != 0) ? JITTER_Y_AMOUNT : stod(val);
         // AimBot
         AIMBOT_HZ = (key.compare("AIMBOT_HZ") != 0) ? AIMBOT_HZ : stod(val);
         AIMBOT_DELAY = (key.compare("AIMBOT_DELAY") != 0) ? AIMBOT_DELAY : stod(val);
@@ -169,6 +182,7 @@ struct ConfigLoader {
         AIMBOT_PREDICT_BULLETDROP = (key.compare("AIMBOT_PREDICT_BULLETDROP") != 0) ? AIMBOT_PREDICT_BULLETDROP : toBool(val);
         AIMBOT_PREDICT_MOVEMENT = (key.compare("AIMBOT_PREDICT_MOVEMENT") != 0) ? AIMBOT_PREDICT_MOVEMENT : toBool(val);
 //        AIMBOT_ALLOW_TARGET_SWITCH = (key.compare("AIMBOT_ALLOW_TARGET_SWITCH") != 0) ? AIMBOT_ALLOW_TARGET_SWITCH : toBool(val);
+        AIMBOT_HITBOX_HEAD = (key.compare("AIMBOT_HITBOX_HEAD") != 0) ? AIMBOT_HITBOX_HEAD : toBool(val);
         AIMBOT_FRIENDLY_FIRE = (key.compare("AIMBOT_FRIENDLY_FIRE") != 0) ? AIMBOT_FRIENDLY_FIRE : toBool(val);
         AIMBOT_LEGACY_MODE = (key.compare("AIMBOT_LEGACY_MODE") != 0) ? AIMBOT_LEGACY_MODE : toBool(val);
         AIMBOT_MAX_DISTANCE = (key.compare("AIMBOT_MAX_DISTANCE") != 0) ? AIMBOT_MAX_DISTANCE : stoi(val);
@@ -205,6 +219,7 @@ struct ConfigLoader {
         // Features
         printf("FEATURE_AIMBOT_ON\t\t\t\t\t%s\n", FEATURE_AIMBOT_ON ? "YES" : "NO");
         printf("FEATURE_TRIGGERBOT_ON\t\t\t\t\t%s\n", FEATURE_TRIGGERBOT_ON ? "YES" : "NO");
+        printf("FEATURE_RECOIL_ON\t\t\t\t\t%s\n", FEATURE_RECOIL_ON ? "YES" : "NO");
         printf("FEATURE_SPECTATORS_ON\t\t\t\t\t%s\n", FEATURE_SPECTATORS_ON ? "YES" : "NO");
         printf("FEATURE_SPECTATORS_SHOW_DEAD\t\t\t\t%s\n", FEATURE_SPECTATORS_SHOW_DEAD ? "YES" : "NO");
         printf("FEATURE_SUPER_GLIDE_ON\t\t\t\t\t%s\n", FEATURE_SUPER_GLIDE_ON ? "YES" : "NO");
@@ -215,6 +230,8 @@ struct ConfigLoader {
         // Sense
         printf("SENSE_VERBOSE\t\t\t\t\t\t%d\n", SENSE_VERBOSE);
         printf("SENSE_MAX_RANGE\t\t\t\t\t\t%d\n", SENSE_MAX_RANGE);
+        printf("SENSE_360_ALERT\t\t\t\t\t\t%s\n", SENSE_360_ALERT ? "YES" : "NO");
+        printf("SENSE_SHOW_BOX\t\t\t\t\t\t%s\n", SENSE_SHOW_BOX ? "YES" : "NO");
         printf("SENSE_SHOW_PLAYER_BARS\t\t\t\t\t%s\n", SENSE_SHOW_PLAYER_BARS ? "YES" : "NO");
         printf("SENSE_SHOW_PLAYER_DISTANCES\t\t\t\t%s\n", SENSE_SHOW_PLAYER_DISTANCES ? "YES" : "NO");
         printf("SENSE_SHOW_PLAYER_NAMES\t\t\t\t\t%s\n", SENSE_SHOW_PLAYER_NAMES ? "YES" : "NO");
@@ -227,6 +244,10 @@ struct ConfigLoader {
         // TriggerBot
 //        printf("TRIGGERBOT_ZOOMED_RANGE\t\t\t\t\t%d\n", TRIGGERBOT_ZOOMED_RANGE);
         printf("TRIGGERBOT_HIPFIRE_RANGE\t\t\t\t%d\n", TRIGGERBOT_HIPFIRE_RANGE);
+        printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
+        // Jitter
+        printf("JITTER_X_AMOUNT\t\t\t\t\t\t%.4f\n", JITTER_X_AMOUNT);
+        printf("JITTER_Y_AMOUNT\t\t\t\t\t\t%.4f\n", JITTER_Y_AMOUNT);
         printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
         // AimBot
         printf("AIMBOT_HZ\t\t\t\t\t\t%d\n", AIMBOT_HZ);
@@ -256,6 +277,7 @@ struct ConfigLoader {
         printf("AIMBOT_PREDICT_BULLETDROP\t\t\t\t%s\n", AIMBOT_PREDICT_BULLETDROP ? "YES" : "NO");
         printf("AIMBOT_PREDICT_MOVEMENT\t\t\t\t\t%s\n", AIMBOT_PREDICT_MOVEMENT ? "YES" : "NO");
 //        printf("AIMBOT_ALLOW_TARGET_SWITCH\t\t\t\t%s\n", AIMBOT_ALLOW_TARGET_SWITCH ? "YES" : "NO");
+        printf("AIMBOT_HITBOX_HEAD\t\t\t\t\t%s\n", AIMBOT_HITBOX_HEAD ? "YES" : "NO");
         printf("AIMBOT_FRIENDLY_FIRE\t\t\t\t\t%s\n", AIMBOT_FRIENDLY_FIRE ? "YES" : "NO");
         printf("AIMBOT_LEGACY_MODE\t\t\t\t\t%s\n", AIMBOT_LEGACY_MODE ? "YES" : "NO");
         printf("AIMBOT_MAX_DISTANCE\t\t\t\t\t%d\n", AIMBOT_MAX_DISTANCE);
