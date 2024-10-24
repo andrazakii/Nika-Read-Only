@@ -239,9 +239,15 @@ int main(int argc, char* argv[]) {
                         totalSpectators = tempTotalSpectators;
                         spectators = tempSpectators;
                         printf("Spectators: %d\n", static_cast<int>(spectators.size()));
+<<<<<<< HEAD
                         // if (static_cast<int>(spectators.size()) > 0)
                         //     for (int i = 0; i < static_cast<int>(spectators.size()); i++)
                         //         printf("> %s\n", spectators.at(i).c_str());
+=======
+//                        if (static_cast<int>(spectators.size()) > 0)
+//                            for (int i = 0; i < static_cast<int>(spectators.size()); i++)
+//                                printf("> %s\n", spectators.at(i).c_str());
+>>>>>>> origin/main
                     }
                 }
             } else {
