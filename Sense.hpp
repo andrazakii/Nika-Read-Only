@@ -7,6 +7,7 @@ struct Sense {
     Camera* gameCamera;
     AimBot* aimBot;
     bool shouldUnload = false;
+    bool settingsSaved = false;
 
     Sense(ConfigLoader* in_cl, LocalPlayer* in_lp, std::vector<Player*>* in_players, Camera* in_gameCamera, AimBot* in_aimBot) {
         this->cl = in_cl;
@@ -179,28 +180,40 @@ struct Sense {
                     glEnd();
                 }
 
-                if (cl->SENSE_360_ALERT && (!isLocalOriginW2SValid || !isHeadPositionW2SValid)) {
-                    Vector2D screenCenter(screenSize.x / 2, screenSize.y / 2);
-                    Vector2D direction = localOriginW2S.Subtract(screenCenter);
-                    float angle = atan2(direction.y, direction.x);
-                    std::string txtDistance = std::to_string((int)distance);
-                    std::string indicator;
+                //360 Alert
+                // if (cl->SENSE_360_ALERT && (!isLocalOriginW2SValid || !isHeadPositionW2SValid)) {
+                //     Vector2D screenCenter(screenSize.x / 2, screenSize.y / 2);
+                //     Vector2D direction = localOriginW2S.Subtract(screenCenter);  // Direction from center to off-screen player
+                    
+                //     float angle = atan2(direction.y, direction.x);  // Calculate angle in radians
 
-                    if (angle > -M_PI / 4 && angle <= M_PI / 4) {
-                        indicator = txtDistance + " >";
-                    } else if (angle > M_PI / 4 && angle <= 3 * M_PI / 4) {
-                        indicator = txtDistance + "\nv"; // Distance on top of "v"
-                    } else if (angle > 3 * M_PI / 4 || angle <= -3 * M_PI / 4) {
-                        indicator = "< " + txtDistance;
-                    } else if (angle > -3 * M_PI / 4 && angle <= -M_PI / 4) {
-                        indicator = "^ " + txtDistance;
-                    }
+                //     if (angle < -M_PI) angle += 2 * M_PI;
+                //     if (angle > M_PI) angle -= 2 * M_PI;
 
-                    if (!indicator.empty()) {
-                        ImVec4 indicatorColor = ImVec4(1.00f, 0.00f, 0.00f, 1.00f);
-                        drawText(canvas, screenCenter, indicator.c_str(), indicatorColor, 1.0f);
-                    }
-                }
+                //     Vector2D edgePos;
+                //     std::string txtDistance = std::to_string((int)distance);
+                //     std::string indicator;
+                    
+                //     if (abs(angle) < M_PI / 4) {  // Right edge
+                //         edgePos.x = screenSize.x;
+                //         edgePos.y = screenCenter.y + tan(angle) * screenCenter.x;
+                //         indicator = txtDistance + " >";  // Right side
+                //     } else if (abs(angle) > 3 * M_PI / 4) {  // Left edge
+                //         edgePos.x = 0;
+                //         edgePos.y = screenCenter.y - tan(angle) * screenCenter.x;
+                //         indicator = "< " + txtDistance;  // Left side
+                //     } else if (angle > M_PI / 4 && angle <= 3 * M_PI / 4) {
+                //         edgePos.x = screenCenter.x + tan(M_PI / 2 - angle) * screenCenter.y;
+                //         edgePos.y = screenSize.y;
+                //         indicator = txtDistance + "\nv";  // Bottom side / behind
+                //     }
+
+                //     if (!indicator.empty()) {
+                //         ImVec4 indicatorColor = ImVec4(1.00f, 0.00f, 0.00f, 1.00f);
+                //         drawText(canvas, edgePos, indicator.c_str(), indicatorColor, 1.0f);
+                //     }
+                // } NOT WORKING YET(FUK)
+
 
                 // Draw bar
                 if (cl->SENSE_SHOW_PLAYER_BARS && !p->isItem && isLocalOriginW2SValid && isHeadPositionW2SValid) {
@@ -331,11 +344,17 @@ struct Sense {
         }
 
         // Draw FOV circle
-        if (cl->SENSE_SHOW_FOV && lp->inZoom) {
+        if (cl->SENSE_SHOW_FOV) {
             ImVec2 center(screenSize.x / 2, screenSize.y / 2);
-            int radius = screenSize.y / 60 * cl->AIMBOT_FOV;
-            radius += radius * (60/lp->zoomFov - 1) * cl->AIMBOT_FOV_EXTRA_BY_ZOOM;
-            canvas->AddCircle(center, radius, ImColor(ImVec4(1.00f, 1.00f, 1.00f, 1.00f)));
+            int baseRadius = screenSize.y / 60 * cl->AIMBOT_FOV;
+            int radius = baseRadius + baseRadius * (60 / lp->zoomFov - 1) * cl->AIMBOT_FOV_EXTRA_BY_ZOOM;
+            if (cl->SENSE_SHOW_FOV_AIM) {
+                if (lp->inZoom) {
+                    canvas->AddCircle(center, radius, ImColor(ImVec4(1.00f, 1.00f, 1.00f, 1.00f)));
+                }
+            } else {
+                canvas->AddCircle(center, radius, ImColor(ImVec4(1.00f, 1.00f, 1.00f, 1.00f)));
+            }
         }
 
         // Draw target line
@@ -474,6 +493,7 @@ struct Sense {
     void renderMenu() {
         ImVec2 center = ImGui::GetMainViewport()->GetCenter();
         ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+        ImGui::SetNextWindowSize(ImVec2(800, 600), ImGuiCond_Appearing);
         ImGui::SetNextWindowBgAlpha(0.67f);
         ImGui::Begin("Menu", nullptr,
             ImGuiWindowFlags_NoCollapse |
@@ -481,48 +501,68 @@ struct Sense {
             ImGuiWindowFlags_NoSavedSettings);
 
         if (ImGui::BeginTabBar("Categories")) {
+            if (ImGui::BeginTabItem("About")) {
+                ImGui::Text("GUI Made by andrazakii");
+                ImGui::Checkbox("Aimbot", &cl->FEATURE_AIMBOT_ON);
+                ImGui::Checkbox("Triggerbot", &cl->FEATURE_TRIGGERBOT_ON);
+                ImGui::Checkbox("Recoil Control", &cl->FEATURE_RECOIL_ON);
+                ImGui::Checkbox("Spectators", &cl->FEATURE_SPECTATORS_ON);
+                ImGui::Checkbox("Show Dead Spectators", &cl->FEATURE_SPECTATORS_SHOW_DEAD);
+                ImGui::Checkbox("Super Glide", &cl->FEATURE_SUPER_GLIDE_ON);
+                ImGui::Checkbox("Map Radar", &cl->FEATURE_MAP_RADAR_ON);
+                if (cl->FEATURE_MAP_RADAR_ON) {
+                    ImGui::SliderInt("Map Radar X", &cl->FEATURE_MAP_RADAR_X, 0, 500);
+                    ImGui::SliderInt("Map Radar Y", &cl->FEATURE_MAP_RADAR_Y, 0, 500);
+                }
+                ImGui::EndTabItem();
+            }
+
             if (ImGui::BeginTabItem("Aimbot")) {
                 ImGui::Text("Aimbot Settings");
                 ImGui::Checkbox("Aimbot", &cl->FEATURE_AIMBOT_ON);
-                ImGui::SliderInt("Aimbot Hz", &cl->AIMBOT_HZ, 0, 240);
-                ImGui::SliderInt("Aimbot Delay", &cl->AIMBOT_DELAY, 0, 100);
-                ImGui::SliderFloat("Aimbot Speed", &cl->AIMBOT_SPEED, 0.0f, 100.0f);
-                ImGui::SliderFloat("Aimbot Smooth", &cl->AIMBOT_SMOOTH, 0.0f, 100.0f);
-                ImGui::SliderFloat("Aimbot Smooth Extra by Distance", &cl->AIMBOT_SMOOTH_EXTRA_BY_DISTANCE, 0.0f, 5000.0f);
-                ImGui::SliderFloat("Aimbot FOV", &cl->AIMBOT_FOV, 0.0f, 180.0f);
-                ImGui::SliderFloat("Aimbot FOV Extra by Zoom", &cl->AIMBOT_FOV_EXTRA_BY_ZOOM, 0.0f, 10.0f);
-                ImGui::SliderFloat("Aimbot Fast Area", &cl->AIMBOT_FAST_AREA, 0.0f, 1.0f);
-                ImGui::SliderFloat("Aimbot Slow Area", &cl->AIMBOT_SLOW_AREA, 0.0f, 1.0f);
-                ImGui::SliderFloat("Aimbot Weaken", &cl->AIMBOT_WEAKEN, 0.0f, 10.0f);
-                ImGui::Checkbox("Aimbot Spectators Weaken", &cl->AIMBOT_SPECTATORS_WEAKEN);
-                ImGui::Checkbox("Aimbot Predict Bullet Drop", &cl->AIMBOT_PREDICT_BULLETDROP);
-                ImGui::Checkbox("Aimbot Predict Movement", &cl->AIMBOT_PREDICT_MOVEMENT);
-                ImGui::Checkbox("Aimbot Allow Head Target", &cl->AIMBOT_HITBOX_HEAD);
-                ImGui::Checkbox("Aimbot Friendly Fire", &cl->AIMBOT_FRIENDLY_FIRE);
-                ImGui::Checkbox("Aimbot Legacy Mode", &cl->AIMBOT_LEGACY_MODE);
-                ImGui::SliderInt("Aimbot Max Distance", &cl->AIMBOT_MAX_DISTANCE, 0, 1000);
-                ImGui::SliderInt("Aimbot Min Distance", &cl->AIMBOT_MIN_DISTANCE, 0, 1000);
-                ImGui::SliderInt("Aimbot Zoomed Max Move", &cl->AIMBOT_ZOOMED_MAX_MOVE, 0, 100);
-                ImGui::SliderInt("Aimbot Hipfire Max Move", &cl->AIMBOT_HIPFIRE_MAX_MOVE, 0, 100);
-                ImGui::SliderInt("Aimbot Max Delta", &cl->AIMBOT_MAX_DELTA, 0, 100);
-                ImGui::Checkbox("Aimbot Activated by ADS", &cl->AIMBOT_ACTIVATED_BY_ADS);
-                ImGui::Checkbox("Aimbot Activated by Mouse", &cl->AIMBOT_ACTIVATED_BY_MOUSE);
-                ImGui::Checkbox("Aimbot Activated by Key", &cl->AIMBOT_ACTIVATED_BY_KEY);
+                if (cl->FEATURE_AIMBOT_ON) {
+                    ImGui::SliderInt("Aimbot Hz", &cl->AIMBOT_HZ, 0, 240);
+                    ImGui::SliderInt("Aimbot Delay", &cl->AIMBOT_DELAY, 0, 100);
+                    ImGui::SliderFloat("Aimbot Speed", &cl->AIMBOT_SPEED, 0.0f, 100.0f);
+                    ImGui::SliderFloat("Aimbot Smooth", &cl->AIMBOT_SMOOTH, 0.0f, 100.0f);
+                    ImGui::SliderFloat("Aimbot Smooth Extra by Distance", &cl->AIMBOT_SMOOTH_EXTRA_BY_DISTANCE, 0.0f, 5000.0f);
+                    ImGui::SliderFloat("Aimbot FOV", &cl->AIMBOT_FOV, 0.0f, 180.0f);
+                    ImGui::SliderFloat("Aimbot FOV Extra by Zoom", &cl->AIMBOT_FOV_EXTRA_BY_ZOOM, 0.0f, 10.0f);
+                    ImGui::SliderFloat("Aimbot Fast Area", &cl->AIMBOT_FAST_AREA, 0.0f, 1.0f);
+                    ImGui::SliderFloat("Aimbot Slow Area", &cl->AIMBOT_SLOW_AREA, 0.0f, 1.0f);
+                    ImGui::SliderFloat("Aimbot Weaken", &cl->AIMBOT_WEAKEN, 0.0f, 10.0f);
+                    ImGui::Checkbox("Aimbot Spectators Weaken", &cl->AIMBOT_SPECTATORS_WEAKEN);
+                    ImGui::Checkbox("Aimbot Predict Bullet Drop", &cl->AIMBOT_PREDICT_BULLETDROP);
+                    ImGui::Checkbox("Aimbot Predict Movement", &cl->AIMBOT_PREDICT_MOVEMENT);
+                    ImGui::Checkbox("Aimbot Allow Head Target", &cl->AIMBOT_HITBOX_HEAD);
+                    ImGui::Checkbox("Aimbot Friendly Fire", &cl->AIMBOT_FRIENDLY_FIRE);
+                    ImGui::Checkbox("Aimbot Legacy Mode", &cl->AIMBOT_LEGACY_MODE);
+                    ImGui::SliderInt("Aimbot Max Distance", &cl->AIMBOT_MAX_DISTANCE, 0, 1000);
+                    ImGui::SliderInt("Aimbot Min Distance", &cl->AIMBOT_MIN_DISTANCE, 0, 1000);
+                    ImGui::SliderInt("Aimbot Zoomed Max Move", &cl->AIMBOT_ZOOMED_MAX_MOVE, 0, 100);
+                    ImGui::SliderInt("Aimbot Hipfire Max Move", &cl->AIMBOT_HIPFIRE_MAX_MOVE, 0, 100);
+                    ImGui::SliderInt("Aimbot Max Delta", &cl->AIMBOT_MAX_DELTA, 0, 100);
+                    ImGui::Checkbox("Aimbot Activated by ADS", &cl->AIMBOT_ACTIVATED_BY_ADS);
+                    ImGui::Checkbox("Aimbot Activated by Mouse", &cl->AIMBOT_ACTIVATED_BY_MOUSE);
+                    ImGui::Checkbox("Aimbot Activated by Key", &cl->AIMBOT_ACTIVATED_BY_KEY);
+                }
                 ImGui::EndTabItem();
             }
 
             if (ImGui::BeginTabItem("Recoil")) {
                 ImGui::Text("Recoil Settings");
-                ImGui::SliderFloat("Jitter X Amount", &cl->JITTER_X_AMOUNT, 0.0f, 10.0f);
-                ImGui::SliderFloat("Jitter Y Amount", &cl->JITTER_Y_AMOUNT, 0.0f, 10.0f);
+                ImGui::Checkbox("Recoil Control", &cl->FEATURE_RECOIL_ON);
+                if (cl->FEATURE_RECOIL_ON) {
+                    ImGui::SliderFloat("Jitter X Amount", &cl->JITTER_X_AMOUNT, 0.0f, 10.0f);
+                    ImGui::SliderFloat("Jitter Y Amount", &cl->JITTER_Y_AMOUNT, 0.0f, 5.0f);
+                }
                 ImGui::EndTabItem();
             }
 
             if (ImGui::BeginTabItem("Sense")) {
                 ImGui::Text("Sense Settings");
-                ImGui::SliderInt("Verbose", &cl->SENSE_VERBOSE, 0, 5);
                 ImGui::SliderInt("Max Range", &cl->SENSE_MAX_RANGE, 0, 1000);
-                ImGui::Checkbox("360 Alert", &cl->SENSE_360_ALERT);
+                // ImGui::Checkbox("360 Alert", &cl->SENSE_360_ALERT);
                 ImGui::Checkbox("Show Box", &cl->SENSE_SHOW_BOX);
                 ImGui::Checkbox("Show Player Bars", &cl->SENSE_SHOW_PLAYER_BARS);
                 ImGui::Checkbox("Show Player Distances", &cl->SENSE_SHOW_PLAYER_DISTANCES);
@@ -531,6 +571,9 @@ struct Sense {
                 ImGui::Checkbox("Text Bottom", &cl->SENSE_TEXT_BOTTOM);
                 ImGui::Checkbox("Show Dead", &cl->SENSE_SHOW_DEAD);
                 ImGui::Checkbox("Show FOV", &cl->SENSE_SHOW_FOV);
+                if (cl->SENSE_SHOW_FOV) {
+                    ImGui::Checkbox("Show FOV when Aiming Only", &cl->SENSE_SHOW_FOV_AIM);
+                }
                 ImGui::Checkbox("Show Target", &cl->SENSE_SHOW_TARGET);
                 ImGui::EndTabItem();
             }
@@ -549,20 +592,17 @@ struct Sense {
 
             if (ImGui::BeginTabItem("Settings")) {
                 ImGui::Text("Settings");
-                ImGui::Checkbox("Aimbot", &cl->FEATURE_AIMBOT_ON);
-                ImGui::Checkbox("Triggerbot", &cl->FEATURE_TRIGGERBOT_ON);
-                ImGui::Checkbox("Recoil Control", &cl->FEATURE_RECOIL_ON);
-                ImGui::Checkbox("Spectators", &cl->FEATURE_SPECTATORS_ON);
-                ImGui::Checkbox("Show Dead Spectators", &cl->FEATURE_SPECTATORS_SHOW_DEAD);
-                ImGui::Checkbox("Super Glide", &cl->FEATURE_SUPER_GLIDE_ON);
-                ImGui::Checkbox("Map Radar", &cl->FEATURE_MAP_RADAR_ON);
-                ImGui::SliderInt("Map Radar X", &cl->FEATURE_MAP_RADAR_X, 0, 500);
-                ImGui::SliderInt("Map Radar Y", &cl->FEATURE_MAP_RADAR_Y, 0, 500);
 
                 // Add Save Button
                 if (ImGui::Button("Save Settings")) {
                     saveSettings();
+                    settingsSaved = true;
                 }
+
+                if (settingsSaved) {
+                    ImGui::Text("Settings saved to nika.ini");
+                }
+
                 if (ImGui::Button("Unload")) {
                     shouldUnload = true;
                 }
@@ -594,7 +634,7 @@ struct Sense {
             configFile << "\n# SENSE\n";
             configFile << "SENSE_VERBOSE                          " << cl->SENSE_VERBOSE << "    #[1-2] 2 = use Overlay, 1 = use CLI (text only)\n";
             configFile << "SENSE_MAX_RANGE                        " << cl->SENSE_MAX_RANGE << "  #[0-99999] Sense will not work if the target is too far. Units are meters\n";
-            configFile << "SENSE_360_ALERT                        " << (cl->SENSE_360_ALERT ? "YES" : "NO") << "  #[YES,NO] Alert when someone is behind you\n";
+            // configFile << "SENSE_360_ALERT                        " << (cl->SENSE_360_ALERT ? "YES" : "NO") << "  #[YES,NO] Alert when someone is behind you\n";
             configFile << "SENSE_SHOW_BOX                         " << (cl->SENSE_SHOW_BOX ? "YES" : "NO") << "  #[YES,NO]\n";
             configFile << "SENSE_SHOW_PLAYER_BARS                 " << (cl->SENSE_SHOW_PLAYER_BARS ? "YES" : "NO") << "  #[YES,NO]\n";
             configFile << "SENSE_SHOW_PLAYER_DISTANCES            " << (cl->SENSE_SHOW_PLAYER_DISTANCES ? "YES" : "NO") << "  #[YES,NO]\n";

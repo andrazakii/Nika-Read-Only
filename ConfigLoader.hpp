@@ -22,7 +22,7 @@ struct ConfigLoader {
     // Sense
     int SENSE_VERBOSE = 2;
     int SENSE_MAX_RANGE = 250;
-    bool SENSE_360_ALERT = true;
+    // bool SENSE_360_ALERT = true;
     bool SENSE_SHOW_BOX = true;
     bool SENSE_SHOW_PLAYER_BARS = true;
     bool SENSE_SHOW_PLAYER_DISTANCES = true;
@@ -31,6 +31,7 @@ struct ConfigLoader {
     bool SENSE_TEXT_BOTTOM = true;
     bool SENSE_SHOW_DEAD = false;
     bool SENSE_SHOW_FOV = true;
+    bool SENSE_SHOW_FOV_AIM = true;
     bool SENSE_SHOW_TARGET = true;
     // TriggerBot
 //    int TRIGGERBOT_ZOOMED_RANGE = 180;
@@ -151,7 +152,7 @@ struct ConfigLoader {
         // Sense
         SENSE_VERBOSE = (key.compare("SENSE_VERBOSE") != 0) ? SENSE_VERBOSE : stoi(val);
         SENSE_MAX_RANGE = (key.compare("SENSE_MAX_RANGE") != 0) ? SENSE_MAX_RANGE : stoi(val);
-        SENSE_360_ALERT = (key.compare("SENSE_360_ALERT") != 0) ? SENSE_360_ALERT : toBool(val);
+        // SENSE_360_ALERT = (key.compare("SENSE_360_ALERT") != 0) ? SENSE_360_ALERT : toBool(val);
         SENSE_SHOW_BOX = (key.compare("SENSE_SHOW_BOX") != 0) ? SENSE_SHOW_BOX : toBool(val);
         SENSE_SHOW_PLAYER_BARS = (key.compare("SENSE_SHOW_PLAYER_BARS") != 0) ? SENSE_SHOW_PLAYER_BARS : toBool(val);
         SENSE_SHOW_PLAYER_DISTANCES = (key.compare("SENSE_SHOW_PLAYER_DISTANCES") != 0) ? SENSE_SHOW_PLAYER_DISTANCES : toBool(val);
@@ -160,6 +161,7 @@ struct ConfigLoader {
         SENSE_TEXT_BOTTOM = (key.compare("SENSE_TEXT_BOTTOM") != 0) ? SENSE_TEXT_BOTTOM : toBool(val);
         SENSE_SHOW_DEAD = (key.compare("SENSE_SHOW_DEAD") != 0) ? SENSE_SHOW_DEAD : toBool(val);
         SENSE_SHOW_FOV = (key.compare("SENSE_SHOW_FOV") != 0) ? SENSE_SHOW_FOV : toBool(val);
+        SENSE_SHOW_FOV_AIM = (key.compare("SENSE_SHOW_FOV_AIM") != 0) ? SENSE_SHOW_FOV_AIM : toBool(val);
         SENSE_SHOW_TARGET = (key.compare("SENSE_SHOW_TARGET") != 0) ? SENSE_SHOW_TARGET : toBool(val);
         // TriggerBot
 //        TRIGGERBOT_ZOOMED_RANGE = (key.compare("TRIGGERBOT_ZOOMED_RANGE") != 0) ? TRIGGERBOT_ZOOMED_RANGE : stoi(val);
@@ -230,7 +232,7 @@ struct ConfigLoader {
         // Sense
         printf("SENSE_VERBOSE\t\t\t\t\t\t%d\n", SENSE_VERBOSE);
         printf("SENSE_MAX_RANGE\t\t\t\t\t\t%d\n", SENSE_MAX_RANGE);
-        printf("SENSE_360_ALERT\t\t\t\t\t\t%s\n", SENSE_360_ALERT ? "YES" : "NO");
+        // printf("SENSE_360_ALERT\t\t\t\t\t\t%s\n", SENSE_360_ALERT ? "YES" : "NO");
         printf("SENSE_SHOW_BOX\t\t\t\t\t\t%s\n", SENSE_SHOW_BOX ? "YES" : "NO");
         printf("SENSE_SHOW_PLAYER_BARS\t\t\t\t\t%s\n", SENSE_SHOW_PLAYER_BARS ? "YES" : "NO");
         printf("SENSE_SHOW_PLAYER_DISTANCES\t\t\t\t%s\n", SENSE_SHOW_PLAYER_DISTANCES ? "YES" : "NO");
@@ -239,6 +241,7 @@ struct ConfigLoader {
         printf("SENSE_TEXT_BOTTOM\t\t\t\t\t%s\n", SENSE_TEXT_BOTTOM ? "YES" : "NO");
         printf("SENSE_SHOW_DEAD\t\t\t\t\t\t%s\n", SENSE_SHOW_DEAD ? "YES" : "NO");
         printf("SENSE_SHOW_FOV\t\t\t\t\t\t%s\n", SENSE_SHOW_FOV ? "YES" : "NO");
+        printf("SENSE_SHOW_FOV_AIM\t\t\t\t\t\t%s\n", SENSE_SHOW_FOV_AIM ? "YES" : "NO");
         printf("SENSE_SHOW_TARGET\t\t\t\t\t%s\n", SENSE_SHOW_TARGET ? "YES" : "NO");
         printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
         // TriggerBot
