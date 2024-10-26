@@ -63,7 +63,7 @@ struct Sense {
     void drawText(ImDrawList* canvas, Vector2D textPosition, const char* text, ImVec4 textColor, float scaleFactor) {
         int textX = textPosition.x;
         int textY = textPosition.y;
-        char buffer[256];
+        char buffer[16];
         strncpy(buffer, text, sizeof(buffer));
         buffer[sizeof(buffer) - 1] = '\0'; // Ensure null-termination
         const auto textSize = ImGui::CalcTextSize(buffer);
