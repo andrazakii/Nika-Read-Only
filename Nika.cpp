@@ -24,7 +24,7 @@ int counter = 1;
 bool leftLock = false;
 bool rightLock = false;
 bool autoFire = configLoader->FEATURE_TRIGGERBOT_ON;
-int boneId = 2;
+int boneId = 1;
 int processingTime;
 std::vector<int> processingTimes;
 double averageProcessingTime;

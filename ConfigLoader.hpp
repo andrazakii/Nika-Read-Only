@@ -17,8 +17,14 @@ struct ConfigLoader {
     bool FEATURE_SPECTATORS_SHOW_DEAD = false;
     bool FEATURE_SUPER_GLIDE_ON = false;
     bool FEATURE_MAP_RADAR_ON = true;
-    int FEATURE_MAP_RADAR_X = 220;
-    int FEATURE_MAP_RADAR_Y = 220;
+    // Radar
+    bool MAP_RADAR_ROTATE = true;
+    bool MAP_RADAR_LINE = true;
+    float MAP_RADAR_BACKGROUND = 0.5f;
+    float MAP_RADAR_SCALE = 1.5f;
+    int MAP_RADAR_SIZE = 220;
+    float MAP_RADAR_POS_X = 10.0f;
+    float MAP_RADAR_POS_Y = 10.0f;
     // Sense
     int SENSE_VERBOSE = 2;
     int SENSE_MAX_RANGE = 250;
@@ -147,8 +153,14 @@ struct ConfigLoader {
         FEATURE_SPECTATORS_SHOW_DEAD = (key.compare("FEATURE_SPECTATORS_SHOW_DEAD") != 0) ? FEATURE_SPECTATORS_SHOW_DEAD : toBool(val);
         FEATURE_SUPER_GLIDE_ON = (key.compare("FEATURE_SUPER_GLIDE_ON") != 0) ? FEATURE_SUPER_GLIDE_ON : toBool(val);
         FEATURE_MAP_RADAR_ON = (key.compare("FEATURE_MAP_RADAR_ON") != 0) ? FEATURE_MAP_RADAR_ON : toBool(val);
-        FEATURE_MAP_RADAR_X = (key.compare("FEATURE_MAP_RADAR_X") != 0) ? FEATURE_MAP_RADAR_X : stoi(val);
-        FEATURE_MAP_RADAR_Y = (key.compare("FEATURE_MAP_RADAR_Y") != 0) ? FEATURE_MAP_RADAR_Y : stoi(val);
+        // Radar
+        MAP_RADAR_ROTATE = (key.compare("MAP_RADAR_ROTATE") != 0) ? MAP_RADAR_ROTATE : toBool(val);
+        MAP_RADAR_LINE = (key.compare("MAP_RADAR_LINE") != 0) ? MAP_RADAR_LINE : toBool(val);
+        MAP_RADAR_BACKGROUND = (key.compare("MAP_RADAR_BACKGROUND") != 0) ? MAP_RADAR_BACKGROUND : stof(val);
+        MAP_RADAR_SCALE = (key.compare("MAP_RADAR_SCALE") != 0 ? MAP_RADAR_SCALE : stoi(val));
+        MAP_RADAR_SIZE = (key.compare("MAP_RADAR_SIZE") != 0) ? MAP_RADAR_SIZE : stoi(val);
+        MAP_RADAR_POS_X = (key.compare("MAP_RADAR_POS_X") != 0) ? MAP_RADAR_POS_X : stoi(val);
+        MAP_RADAR_POS_Y = (key.compare("MAP_RADAR_POS_Y") != 0) ? MAP_RADAR_POS_Y : stoi(val);
         // Sense
         SENSE_VERBOSE = (key.compare("SENSE_VERBOSE") != 0) ? SENSE_VERBOSE : stoi(val);
         SENSE_MAX_RANGE = (key.compare("SENSE_MAX_RANGE") != 0) ? SENSE_MAX_RANGE : stoi(val);
@@ -226,8 +238,15 @@ struct ConfigLoader {
         printf("FEATURE_SPECTATORS_SHOW_DEAD\t\t\t\t%s\n", FEATURE_SPECTATORS_SHOW_DEAD ? "YES" : "NO");
         printf("FEATURE_SUPER_GLIDE_ON\t\t\t\t\t%s\n", FEATURE_SUPER_GLIDE_ON ? "YES" : "NO");
         printf("FEATURE_MAP_RADAR_ON\t\t\t\t\t%s\n", FEATURE_MAP_RADAR_ON ? "YES" : "NO");
-        printf("FEATURE_MAP_RADAR_X\t\t\t\t\t%d\n", FEATURE_MAP_RADAR_X);
-        printf("FEATURE_MAP_RADAR_Y\t\t\t\t\t%d\n", FEATURE_MAP_RADAR_Y);
+        printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
+        // Radar
+        printf("MAP_RADAR_ROTATE\t\t\t\t\t%s\n", MAP_RADAR_ROTATE ? "YES" : "NO");
+        printf("MAP_RADAR_LINE\t\t\t\t\t\t%s\n", MAP_RADAR_LINE ? "YES" : "NO");
+        printf("MAP_RADAR_BACKGROUND\t\t\t\t\t%s\n", MAP_RADAR_BACKGROUND);
+        printf("MAP_RADAR_SCALE\t\t\t\t\t%s\n", MAP_RADAR_SCALE);
+        printf("MAP_RADAR_SIZE\t\t\t\t\t\t%d\n", MAP_RADAR_SIZE);
+        printf("MAP_RADAR_POS_X\t\t\t\t\t%d\n", MAP_RADAR_POS_X);
+        printf("MAP_RADAR_POS_Y\t\t\t\t\t%d\n", MAP_RADAR_POS_Y);
         printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
         // Sense
         printf("SENSE_VERBOSE\t\t\t\t\t\t%d\n", SENSE_VERBOSE);

@@ -370,34 +370,34 @@ struct Sense {
         }
     }
 
-    static Vector3D rotatePoint(Vector3D localPlayerPos, Vector3D playerPos, int posX, int posY, int sizeX, int sizeY, float angle, float zoom, bool* viewCheck) {
+    static Vector3D rotatePoint(Vector3D localPlayerPos, Vector3D playerPos, int posX, int posY, 
+        int sizeX, int sizeY, float playerAngle, float zoom, float scale, bool* viewCheck) {
         float r_1, r_2;
         float x_1, y_1;
 
         r_1 = -(playerPos.y - localPlayerPos.y);
         r_2 = playerPos.x - localPlayerPos.x;
 
-        float yawToRadian = angle * (float)(M_PI / 180.0f);
-        x_1 = (float)(r_2 * (float)cos((double)(yawToRadian)) - r_1 * sin((double)(yawToRadian))) / 20;
-        y_1 = (float)(r_2 * (float)sin((double)(yawToRadian)) + r_1 * cos((double)(yawToRadian))) / 20;
+        float yawToRadian = (-playerAngle - 90) * (M_PI / 180.0f);
+
+        x_1 = (float)(r_2 * cos(yawToRadian) - r_1 * sin(yawToRadian)) / 20;
+        y_1 = (float)(r_2 * sin(yawToRadian) + r_1 * cos(yawToRadian)) / 20;
 
         *viewCheck = y_1 < 0;
 
-        x_1 *= zoom;
-        y_1 *= zoom;
+        // Apply zoom and scale
+        x_1 *= zoom * scale;
+        y_1 *= zoom * scale;
 
         x_1 += sizeX / 2;
         y_1 += sizeY / 2;
 
         if (x_1 < 5)
             x_1 = 5;
-
         if (x_1 > sizeX - 5)
             x_1 = sizeX - 5;
-
         if (y_1 < 5)
             y_1 = 5;
-
         if (y_1 > sizeY - 5)
             y_1 = sizeY - 5;
 
@@ -407,38 +407,88 @@ struct Sense {
         return Vector3D(x_1, y_1, 0);
     }
 
+    Vector3D WorldToRadar(const Vector3D& enemyPos, const Vector3D& localPos, float localYaw, const ImVec2& radarCenter, float radarScale, const ImVec2& radarSize) {
+        // Get delta between enemy and local player
+        Vector3D delta;
+        delta.x = enemyPos.x - localPos.x;
+        delta.y = enemyPos.y - localPos.y;
+
+        // Calculate radar scale factor
+        float baseScale = 0.5f; // This value determines how much area is visible at a scale of 1.0
+        float scaleFactor = baseScale * radarScale; // Invert the scaling logic
+
+        // Convert to radar space
+        float angle = -(localYaw - 90.0f) * (M_PI / 180.0f);
+        float cosAngle = cos(angle);
+        float sinAngle = sin(angle);
+
+        // Rotate and scale point
+        Vector3D rotated;
+        rotated.x = (delta.x * cosAngle - delta.y * sinAngle) * scaleFactor;
+        rotated.y = -((delta.x * sinAngle + delta.y * cosAngle) * scaleFactor);
+
+        // Clamp to square bounds instead of circular
+        float halfWidth = (radarSize.x / 2.0f) - 5.0f;
+        float halfHeight = (radarSize.y / 2.0f) - 5.0f;
+        
+        // Clamp x and y independently to maintain square bounds
+        rotated.x = std::clamp(rotated.x, -halfWidth, halfWidth);
+        rotated.y = std::clamp(rotated.y, -halfHeight, halfHeight);
+
+        // Convert to screen coordinates
+        Vector3D screen;
+        screen.x = radarCenter.x + rotated.x;
+        screen.y = radarCenter.y + rotated.y;
+        
+        return screen;
+    }
+
     void renderRadar(ImDrawList* canvas) {
-        // 1920*1080: 215 x 215
-        // 2560*1440: 335 x 335
-        ImGui::SetNextWindowSize({ cl->FEATURE_MAP_RADAR_X, cl->FEATURE_MAP_RADAR_Y });
-        ImGui::Begin("Radar", nullptr,
-            ImGuiWindowFlags_NoTitleBar |
-            ImGuiWindowFlags_NoResize |
-            ImGuiWindowFlags_NoMove |
-            ImGuiWindowFlags_NoScrollbar |
-            ImGuiWindowFlags_NoCollapse |
-            ImGuiWindowFlags_NoBackground |
-            ImGuiWindowFlags_NoSavedSettings |
-            ImGuiWindowFlags_NoBringToFrontOnFocus |
-            ImGuiWindowFlags_NoInputs);
+        ImGui::SetNextWindowSize(ImVec2(cl->MAP_RADAR_SIZE, cl->MAP_RADAR_SIZE));
+        ImGui::SetNextWindowPos(ImVec2(cl->MAP_RADAR_POS_X, cl->MAP_RADAR_POS_Y));
+        ImGui::Begin("Radar", nullptr, 
+            ImGuiWindowFlags_NoTitleBar | 
+            ImGuiWindowFlags_NoResize | 
+            ImGuiWindowFlags_NoScrollbar | 
+            ImGuiWindowFlags_NoCollapse | 
+            ImGuiWindowFlags_NoBackground | 
+            ImGuiWindowFlags_NoSavedSettings | 
+            ImGuiWindowFlags_NoBringToFrontOnFocus);
+        ImVec2 windowPos = ImGui::GetWindowPos();
+        cl->MAP_RADAR_POS_X = windowPos.x;
+        cl->MAP_RADAR_POS_Y = windowPos.y;
 
         ImVec2 drawPos = ImGui::GetCursorScreenPos();
         ImVec2 drawSize = ImGui::GetContentRegionAvail();
         ImVec2 midRadar = ImVec2(drawPos.x + (drawSize.x / 2), drawPos.y + (drawSize.y / 2));
-        ImVec2 startHorizontal(midRadar.x - drawSize.x / 2, midRadar.y);
-        ImVec2 endHorizontal(midRadar.x + drawSize.x / 2, midRadar.y);
-        ImVec2 startVertical(midRadar.x, midRadar.y - drawSize.y / 2);
-        ImVec2 endVertical(midRadar.x, midRadar.y + drawSize.y / 2);
 
-        glColor3f(1.00f, 1.00f, 1.00f);
-        glLineWidth(1.0f);
-        glBegin(GL_LINES);
-        glVertex2f(startHorizontal.x, midRadar.y);
-        glVertex2f(endHorizontal.x, midRadar.y);
-        glVertex2f(midRadar.x, startVertical.y);
-        glVertex2f(midRadar.x, endVertical.y);
-        glEnd();
 
+        // Draw background
+        canvas->AddRectFilled(
+            ImVec2(drawPos.x, drawPos.y),
+            ImVec2(drawPos.x + drawSize.x, drawPos.y + drawSize.y),
+            ImColor(ImVec4(0.0f, 0.0f, 0.0f, cl->MAP_RADAR_BACKGROUND))
+        );
+
+        // Draw radar lines
+        if (cl->MAP_RADAR_LINE) {
+            ImVec2 startHorizontal(midRadar.x - drawSize.x / 2, midRadar.y);
+            ImVec2 endHorizontal(midRadar.x + drawSize.x / 2, midRadar.y);
+            ImVec2 startVertical(midRadar.x, midRadar.y - drawSize.y / 2);
+            ImVec2 endVertical(midRadar.x, midRadar.y + drawSize.y / 2);
+
+            canvas->AddLine(startHorizontal, endHorizontal, ImColor(1.0f, 1.0f, 1.0f, 0.5f));
+            canvas->AddLine(startVertical, endVertical, ImColor(1.0f, 1.0f, 1.0f, 0.5f));
+        }
+
+        // Draw local player in the middle
+        canvas->AddCircleFilled(
+            midRadar,
+            5,  // radius
+            ImColor(0.0f, 1.0f, 0.0f, 1.0f)  // Green color
+        );
+
+        // Draw other players
         for (int i = 0; i < players->size(); i++) {
             Player* p = players->at(i);
             if (!p->isEnemy || !p->isValid() || p->isLocal)
@@ -446,22 +496,50 @@ struct Sense {
 
             float radarDistance = util::inchesToMeters(p->distance2DToLocalPlayer);
             if (radarDistance >= 0.0f && radarDistance < cl->SENSE_MAX_RANGE) {
-                bool viewCheck = false;
-                Vector3D single = rotatePoint(lp->localOrigin, p->localOrigin, drawPos.x, drawPos.y, drawSize.x, drawSize.y, p->viewAngles.y, 0.3f, &viewCheck);
+                Vector3D radarPos = WorldToRadar(
+                    p->localOrigin,
+                    lp->localOrigin,
+                    cl->MAP_RADAR_ROTATE ? lp->viewAngles.y : 0.0f,
+                    midRadar,
+                    cl->MAP_RADAR_SCALE,
+                    drawSize
+                );
 
-                ImVec2 center(single.x, single.y);
-                int radius = 5;
-                if (p->isItem)
-                    canvas->AddCircleFilled(center, radius, ImColor(ImVec4(0, 0.99, 0.99, 0.99)));
-                else
-                    canvas->AddCircleFilled(center, radius, ImColor(ImVec4(0.99, 0, 0.99, 0.99)));
-                if (p->isVisible)
-                    canvas->AddCircle(center, radius + 2, ImColor(ImVec4(0.99, 0.99, 0, 0.99)));
+                ImVec2 enemyPos(radarPos.x, radarPos.y);
+                
+                // Calculate height difference
+                float heightDiff = p->localOrigin.z - lp->localOrigin.z;
+                
+                // Draw enemy dot
+                ImColor dotColor = p->isItem ? 
+                    ImColor(0.0f, 0.99f, 0.99f, 0.99f) : 
+                    ImColor(0.99f, 0.0f, 0.0f, 0.99f);
 
-                // Draw a line pointing in the direction of each player's aim
-                float angle = (360.0f - p->viewYaw) * (M_PI / 180.0f);
-                ImVec2 endpoint(center.x + radius * cos(angle), center.y + radius * sin(angle));
-                canvas->AddLine(center, endpoint, ImColor(ImVec4(0, 0, 0, 0.99)));
+                canvas->AddCircleFilled(enemyPos, 5, dotColor);
+
+                // Draw height indicator inside circle
+                if (heightDiff < -50.0f) { // Enemy is below
+                    // Draw a centered 'v'
+                    canvas->AddTriangleFilled(
+                        ImVec2(enemyPos.x, enemyPos.y + 3),       // Bottom point
+                        ImVec2(enemyPos.x - 3, enemyPos.y - 1),   // Top left
+                        ImVec2(enemyPos.x + 3, enemyPos.y - 1),   // Top right
+                        ImColor(1.0f, 1.0f, 1.0f, 0.99f)
+                    );
+                }
+                else if (heightDiff > 50.0f) { // Enemy is above
+                    // Draw a centered '^'
+                    canvas->AddTriangleFilled(
+                        ImVec2(enemyPos.x, enemyPos.y - 3),       // Top point
+                        ImVec2(enemyPos.x - 3, enemyPos.y + 1),   // Bottom left
+                        ImVec2(enemyPos.x + 3, enemyPos.y + 1),   // Bottom right
+                        ImColor(1.0f, 1.0f, 1.0f, 0.99f)
+                    );
+                }
+
+                if (p->isVisible) {
+                    canvas->AddCircle(enemyPos, 7, ImColor(0.99f, 0.99f, 0.0f, 0.99f));
+                }
             }
         }
         ImGui::End();
@@ -510,10 +588,6 @@ struct Sense {
                 ImGui::Checkbox("Show Dead Spectators", &cl->FEATURE_SPECTATORS_SHOW_DEAD);
                 ImGui::Checkbox("Super Glide", &cl->FEATURE_SUPER_GLIDE_ON);
                 ImGui::Checkbox("Map Radar", &cl->FEATURE_MAP_RADAR_ON);
-                if (cl->FEATURE_MAP_RADAR_ON) {
-                    ImGui::SliderInt("Map Radar X", &cl->FEATURE_MAP_RADAR_X, 0, 500);
-                    ImGui::SliderInt("Map Radar Y", &cl->FEATURE_MAP_RADAR_Y, 0, 500);
-                }
                 ImGui::EndTabItem();
             }
 
@@ -577,6 +651,21 @@ struct Sense {
                 ImGui::Checkbox("Show Target", &cl->SENSE_SHOW_TARGET);
                 ImGui::EndTabItem();
             }
+            
+            if (ImGui::BeginTabItem("Radar")) {
+                ImGui::Text("Radar Settings");
+                ImGui::Checkbox("Radar", &cl->FEATURE_MAP_RADAR_ON);
+                if (cl->FEATURE_MAP_RADAR_ON) {
+                    ImGui::Checkbox("Map Radar Rotate", &cl->MAP_RADAR_ROTATE);
+                    ImGui::Checkbox("Map Radar Line", &cl->MAP_RADAR_LINE);
+                    ImGui::SliderFloat("Map Radar Background", &cl->MAP_RADAR_BACKGROUND, 0, 1);
+                    ImGui::SliderFloat("Map Radar Scale", &cl->MAP_RADAR_SCALE, 0.01, 1);
+                    ImGui::SliderInt("Map Radar Size", &cl->MAP_RADAR_SIZE, 0, 500);
+                    ImGui::SliderFloat("Map Radar Position X", &cl->MAP_RADAR_POS_X, 0.0f, 500.0f);
+                    ImGui::SliderFloat("Map Radar Position Y", &cl->MAP_RADAR_POS_Y, 0.0f, 500.0f);
+                }
+                ImGui::EndTabItem();
+            }
 
             if (ImGui::BeginTabItem("Items")) {
                 ImGui::Text("Items");
@@ -628,8 +717,15 @@ struct Sense {
             configFile << "FEATURE_SPECTATORS_SHOW_DEAD           " << (cl->FEATURE_SPECTATORS_SHOW_DEAD ? "YES" : "NO") << "   #[YES,NO] Also show dead players still connected\n";
             configFile << "FEATURE_SUPER_GLIDE_ON                 " << (cl->FEATURE_SUPER_GLIDE_ON ? "YES" : "NO") << "   #[YES,NO] Allow super glide activation?\n";
             configFile << "FEATURE_MAP_RADAR_ON                   " << (cl->FEATURE_MAP_RADAR_ON ? "YES" : "NO") << "   #[YES,NO] Show minimap radar\n";
-            configFile << "FEATURE_MAP_RADAR_X                    " << cl->FEATURE_MAP_RADAR_X << "   #[] 1920*1080 X_215 Y_215\n";
-            configFile << "FEATURE_MAP_RADAR_Y                    " << cl->FEATURE_MAP_RADAR_Y << "   #[] 2560*1440 X_335 Y_335\n";
+            
+            configFile << "\n# MAP RADAR\n";
+            configFile << "MAP_RADAR_ROTATE                       " << (cl->MAP_RADAR_ROTATE ? "YES" : "NO") << "   #[YES,NO] Rotate the radar based on the player's yaw\n";
+            configFile << "MAP_RADAR_LINE                         " << (cl->MAP_RADAR_LINE ? "YES" : "NO") << "   #[YES,NO] Draw a line pointing in the direction of each player's aim\n";
+            configFile << "MAP_RADAR_BACKGROUND                   " << cl->MAP_RADAR_BACKGROUND << "   #[0-1] 0 = Transparent, 1 = Opaque\n";
+            configFile << "MAP_RADAR_SCALE                        " << cl->MAP_RADAR_SCALE << "   #[0-3] 0 = 1:1, 1 = 1:2, 2 = 1:4, 3 = 1:8\n";
+            configFile << "MAP_RADAR_SIZE                         " << cl->MAP_RADAR_SIZE << "   #[0-500] Size of the radar window\n";
+            configFile << "MAP_RADAR_POS_X                        " << cl->MAP_RADAR_POS_X << "   #[] 1920*1080 X_215 Y_215\n";
+            configFile << "MAP_RADAR_POS_Y                        " << cl->MAP_RADAR_POS_Y << "   #[] 2560*1440 X_335 Y_335\n";
 
             configFile << "\n# SENSE\n";
             configFile << "SENSE_VERBOSE                          " << cl->SENSE_VERBOSE << "    #[1-2] 2 = use Overlay, 1 = use CLI (text only)\n";
