@@ -157,7 +157,7 @@ struct ConfigLoader {
         MAP_RADAR_ROTATE = (key.compare("MAP_RADAR_ROTATE") != 0) ? MAP_RADAR_ROTATE : toBool(val);
         MAP_RADAR_LINE = (key.compare("MAP_RADAR_LINE") != 0) ? MAP_RADAR_LINE : toBool(val);
         MAP_RADAR_BACKGROUND = (key.compare("MAP_RADAR_BACKGROUND") != 0) ? MAP_RADAR_BACKGROUND : stof(val);
-        MAP_RADAR_SCALE = (key.compare("MAP_RADAR_SCALE") != 0 ? MAP_RADAR_SCALE : stoi(val));
+        MAP_RADAR_SCALE = (key.compare("MAP_RADAR_SCALE") != 0 ? MAP_RADAR_SCALE : stof(val));
         MAP_RADAR_SIZE = (key.compare("MAP_RADAR_SIZE") != 0) ? MAP_RADAR_SIZE : stoi(val);
         MAP_RADAR_POS_X = (key.compare("MAP_RADAR_POS_X") != 0) ? MAP_RADAR_POS_X : stoi(val);
         MAP_RADAR_POS_Y = (key.compare("MAP_RADAR_POS_Y") != 0) ? MAP_RADAR_POS_Y : stoi(val);

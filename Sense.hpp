@@ -414,8 +414,8 @@ struct Sense {
         delta.y = enemyPos.y - localPos.y;
 
         // Calculate radar scale factor
-        float baseScale = 0.5f; // This value determines how much area is visible at a scale of 1.0
-        float scaleFactor = baseScale * radarScale; // Invert the scaling logic
+        float baseScale = 0.06f; // This value determines how much area is visible at a scale of 1.0
+        float scaleFactor = baseScale / radarScale; // Adjust the scaling logic to zoom out when radarScale increases
 
         // Convert to radar space
         float angle = -(localYaw - 90.0f) * (M_PI / 180.0f);
@@ -659,7 +659,7 @@ struct Sense {
                     ImGui::Checkbox("Map Radar Rotate", &cl->MAP_RADAR_ROTATE);
                     ImGui::Checkbox("Map Radar Line", &cl->MAP_RADAR_LINE);
                     ImGui::SliderFloat("Map Radar Background", &cl->MAP_RADAR_BACKGROUND, 0, 1);
-                    ImGui::SliderFloat("Map Radar Scale", &cl->MAP_RADAR_SCALE, 0.01, 1);
+                    ImGui::SliderFloat("Map Radar Scale", &cl->MAP_RADAR_SCALE, 0.1, 10);
                     ImGui::SliderInt("Map Radar Size", &cl->MAP_RADAR_SIZE, 0, 500);
                     ImGui::SliderFloat("Map Radar Position X", &cl->MAP_RADAR_POS_X, 0.0f, 500.0f);
                     ImGui::SliderFloat("Map Radar Position Y", &cl->MAP_RADAR_POS_Y, 0.0f, 500.0f);
