@@ -408,34 +408,27 @@ struct Sense {
     }
 
     Vector3D WorldToRadar(const Vector3D& enemyPos, const Vector3D& localPos, float localYaw, const ImVec2& radarCenter, float radarScale, const ImVec2& radarSize) {
-        // Get delta between enemy and local player
         Vector3D delta;
         delta.x = enemyPos.x - localPos.x;
         delta.y = enemyPos.y - localPos.y;
 
-        // Calculate radar scale factor
-        float baseScale = 0.06f; // This value determines how much area is visible at a scale of 1.0
-        float scaleFactor = baseScale / radarScale; // Adjust the scaling logic to zoom out when radarScale increases
+        float baseScale = 0.06f;
+        float scaleFactor = baseScale / radarScale;
 
-        // Convert to radar space
         float angle = -(localYaw - 90.0f) * (M_PI / 180.0f);
         float cosAngle = cos(angle);
         float sinAngle = sin(angle);
 
-        // Rotate and scale point
         Vector3D rotated;
         rotated.x = (delta.x * cosAngle - delta.y * sinAngle) * scaleFactor;
         rotated.y = -((delta.x * sinAngle + delta.y * cosAngle) * scaleFactor);
 
-        // Clamp to square bounds instead of circular
         float halfWidth = (radarSize.x / 2.0f) - 5.0f;
         float halfHeight = (radarSize.y / 2.0f) - 5.0f;
         
-        // Clamp x and y independently to maintain square bounds
         rotated.x = std::clamp(rotated.x, -halfWidth, halfWidth);
         rotated.y = std::clamp(rotated.y, -halfHeight, halfHeight);
 
-        // Convert to screen coordinates
         Vector3D screen;
         screen.x = radarCenter.x + rotated.x;
         screen.y = radarCenter.y + rotated.y;
@@ -481,14 +474,12 @@ struct Sense {
             canvas->AddLine(startVertical, endVertical, ImColor(1.0f, 1.0f, 1.0f, 0.5f));
         }
 
-        // Draw local player in the middle
         canvas->AddCircleFilled(
             midRadar,
-            5,  // radius
-            ImColor(0.0f, 1.0f, 0.0f, 1.0f)  // Green color
+            5,
+            ImColor(0.0f, 1.0f, 0.0f, 1.0f)
         );
 
-        // Draw other players
         for (int i = 0; i < players->size(); i++) {
             Player* p = players->at(i);
             if (!p->isEnemy || !p->isValid() || p->isLocal)
@@ -507,19 +498,20 @@ struct Sense {
 
                 ImVec2 enemyPos(radarPos.x, radarPos.y);
                 
-                // Calculate height difference
                 float heightDiff = p->localOrigin.z - lp->localOrigin.z;
                 
-                // Draw enemy dot
-                ImColor dotColor = p->isItem ? 
-                    ImColor(0.0f, 0.99f, 0.99f, 0.99f) : 
-                    ImColor(0.99f, 0.0f, 0.0f, 0.99f);
+                ImColor dotColor;
+                if (p->isDrone) {
+                    dotColor = ImColor(0.0f, 0.0f, 0.99f, 0.99f); // Blue color for drones
+                } else if (p->isItem) {
+                    dotColor = ImColor(0.0f, 0.99f, 0.99f, 0.99f); // Cyan color for items
+                } else {
+                    dotColor = ImColor(0.99f, 0.0f, 0.0f, 0.99f); // Red color for enemies
+                }
 
                 canvas->AddCircleFilled(enemyPos, 5, dotColor);
 
-                // Draw height indicator inside circle
-                if (heightDiff < -50.0f) { // Enemy is below
-                    // Draw a centered 'v'
+                if (heightDiff < -50.0f) {
                     canvas->AddTriangleFilled(
                         ImVec2(enemyPos.x, enemyPos.y + 3),       // Bottom point
                         ImVec2(enemyPos.x - 3, enemyPos.y - 1),   // Top left
@@ -527,8 +519,7 @@ struct Sense {
                         ImColor(1.0f, 1.0f, 1.0f, 0.99f)
                     );
                 }
-                else if (heightDiff > 50.0f) { // Enemy is above
-                    // Draw a centered '^'
+                else if (heightDiff > 50.0f) {
                     canvas->AddTriangleFilled(
                         ImVec2(enemyPos.x, enemyPos.y - 3),       // Top point
                         ImVec2(enemyPos.x - 3, enemyPos.y + 1),   // Bottom left
